@@ -1,11 +1,11 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Playtolia",
+  "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#FFCF00",
+    "light": "#ffe052",
+    "dark": "#d6ae00"
   },
   "favicon": "/favicon.svg",
   "navigation": {
