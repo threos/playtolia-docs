@@ -16,12 +16,13 @@ The core of Playtolia is the Playtolia.Core library, which provides the essentia
 Playtolia.Core is a cross-platform library that can be used within Android and iOS applications.\
 It provides a set of APIs that allow you to interact with Playtolia services.
 
-For iOS, Playtolia.Core is implemented as a native library and for Android, it is compiled to Java.\
+For iOS, Playtolia.Core is compiled as a native library. For Android, the library is compiled for Java Virtual Machine just like a regular Java library.\
+\
 This ensures that Playtolia can be used seamlessly across different platforms regardless of the underlying technology.
 
 ### Playtolia for Unity
 
-Playtolia.Unity is a Unity package that automatically integrates the Playtolia.Core library into your Unity project.
+Playtolia.Unity is an Unity package that automatically integrates the Playtolia.Core library into your Unity project.
 
 Once installed, Playtolia.Unity will automatically add necessary dependencies and configure your project to use Playtolia services.\
 \
@@ -31,13 +32,13 @@ This package provides a set of Unity-specific APIs that allow you to use our ser
   During runtime, Playtolia.Unity acts as a **bridge** between your Unity **scene, C# scripts, and the Playtolia.Core** library. Playtolia.Unity is the **wrapper** that allows you to use Playtolia services in your Unity project without having to worry about Java references or native libraries.
 </Note>
 
-## Explore
+## Explore more
 
 Explore what you can do using Playtolia SDK. Easily integrate different Playtolia services in your game to add more capabilities and enable next-level in-game features.
 
 <CardGroup cols={2}>
   <Card title="Authentication" icon="arrow-right-to-bracket">
-    Allow your users to sign-in to their accounts with Google, Facebook, Apple, Discord, or simply their email and password.
+    Allow your users to sign-in to their accounts with Google, Facebook, Apple, Discord, or simply by using their email-password.
   </Card>
   <Card title="Account Management" icon="circle-user">
     Create and manage in-game profiles. Use Sessions API to add avatar, name, and custom properties for your players.
