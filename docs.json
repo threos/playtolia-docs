@@ -22,6 +22,12 @@
             ]
           },
           {
+            "group": "Playtolia for Unity",
+            "pages": [
+              "for-unity/introduction"
+            ]
+          },
+          {
             "group": "Essentials",
             "pages": [
               "essentials/markdown",
