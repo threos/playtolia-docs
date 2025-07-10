@@ -18,4 +18,45 @@ description: "Learn how to integrate Playtolia to your Unity game."
   <Step title="Importing to Unity">
     Drag and drop the downloaded .unitypackage file into your editor. Make sure all folders are selected when Unity asks you to choose the folders to be imported into your project.
   </Step>
+  <Step title="Creating a Playtolia Game Object">
+    Playtolia Game Object automatically initializes and configures Playtolia components in your Unity game. You'll need to add this game object to initial scene in order to attach Playtolia UI and start Playtolia game services.
+
+    <Steps>
+      <Step title="Create a new game object">
+        Go to your scene and create an empty game object at the root by right clicking to your scene and clicking to GameObject \> Create Empty.
+
+        <img
+          src="/images/for-unity-create-empty-game-object.png"
+          alt="for-unity-create-empty-game-object.png"
+          title="for-unity-create-empty-game-object.png"
+          className="mx-auto"
+          style={{ width:"56%" }}
+        />
+      </Step>
+      <Step title="Add PlaytoliaGameObject script">
+        Click on your new game object, and use the inspector (the panel on the right-side of your editor) to add PlaytoliaGameObject script as a new component.
+
+        <img
+          src="/images/for-unity-add-playtolia-game-object-script.png"
+          alt="for-unity-add-playtolia-game-object-script.png"
+          title="for-unity-add-playtolia-game-object-script.png"
+          className="mx-auto"
+          style={{ width:"47%" }}
+        />
+      </Step>
+    </Steps>
+  </Step>
+  <Step title="Configure Playtolia">
+    You can configure Playtolia SDK within your editor. The Playtolia package will automatically take care of generating configuration files at build time.
+
+    See the Playtolia Settings page by navigating to Edit \> Project Settings \> Playtolia Settings. Make sure you enter your Game ID, and configure Playtolia components (Core, Auth, Support etc.)
+
+    <img
+      src="/images/for-unity-playtolia-editor-settings.png"
+      alt="for-unity-playtolia-editor-settings.png"
+      title="for-unity-playtolia-editor-settings.png"
+      className="mx-auto"
+      style={{ width:"83%" }}
+    />
+  </Step>
 </Steps>
