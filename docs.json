@@ -25,7 +25,8 @@
             "group": "Playtolia for Unity",
             "pages": [
               "for-unity/introduction",
-              "for-unity/getting-started"
+              "for-unity/getting-started",
+              "for-unity/authentication"
             ]
           },
           {
