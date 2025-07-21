@@ -1,0 +1,54 @@
+---
+title: "Authentication"
+description: "Learn how to authenticate your players"
+---
+
+### Requirements
+
+- Playtolia SDK (with Authentication enabled)
+
+### Authentication strategies
+
+#### If you have "Authentication Required" enabled
+
+Playtolia will display a login dialog as soon as the PlaytoliaGameObject you've placed in your scene becomes active.
+
+<Warning>
+  This authentication strategy doesn't require further manual setup. However, most of the time, asking your players to login as soon as the game starts is not desired.
+</Warning>
+
+#### If you have disabled "Authentication Required"
+
+You might want to display a trailer, display a demo level, or simply ask for login as after your player has progressed in the game. In that case you must disable the "Authentication Required" checkbox from your Playtolia Settings (in the [project settings](https://docs.unity3d.com/6000.1/Documentation/Manual/comp-ManagerGroup.html)) and prompt login manually.
+
+PlaytoliaAuth.cs is a high-level wrapper to interact with auth related components. You can use PlaytoliaAuth.cs to prompt login, retrieve user session or listen to authentication state changes.
+
+### Prompting login
+
+Import the PlaytoliaSDK.Runtime to your script by adding the using directive
+
+```c# LoginButton.cs
+using PlaytoliaSDK.Runtime;
+```
+
+Call the PlaytoliaAuth.**PromptLogin** function inside another function. Pass a boolean value to specify if the login dialog will be dismissable.
+
+```c# LoginButton.cs
+public void PromptLoginNonDismissable()
+{
+	PlaytoliaAuth.PromptLogin(false);
+}
+
+public void PromptLoginDismissable()
+{
+	PlaytoliaAuth.PromptLogin(); // or PlaytoliaAuth.PromptLogin(true);
+}
+```
+
+If you prompt a dismissable login, the player can tap on the scrim (background) or close button on the dialog to cancel the login.
+
+If you prompt a non-dismissable login, Playtolia will prevent the player from closing the login dialog. This also blocks the player from interacting with the game scene (dialogs block the touch interaction with your scene).
+
+<Note>
+  Work in progress
+</Note>
