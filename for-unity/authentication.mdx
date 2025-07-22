@@ -33,7 +33,7 @@ Import the PlaytoliaSDK.Runtime to your script by adding the using directive
 using PlaytoliaSDK.Runtime;
 ```
 
-Call the PlaytoliaAuth.**PromptLogin** function inside another function. Pass a boolean value to specify if the login dialog will be dismissable.
+Call the **PromptLogin** function inside another function. Pass a boolean value to specify if the login dialog will be dismissable.
 
 ```c# LoginButton.cs
 public void PromptLoginNonDismissable()
@@ -50,6 +50,40 @@ public void PromptLoginDismissable()
 If you prompt a dismissable login, the player can tap on the scrim (background) or close button on the dialog to cancel the login.
 
 If you prompt a non-dismissable login, Playtolia will prevent the player from closing the login dialog. This also blocks the player from interacting with the game scene (dialogs block the touch interaction with your scene).
+
+### Getting the auth state
+
+AuthState is a simple object that holds access token, refresh token, and expiration info. In order to get the AuthState from your C# code, you can use **GetState** function.
+
+```c# AuthHelper.cs
+public bool IsUserLoggedIn()
+{
+	return PlaytoliaAuth.GetState() != null;
+}
+
+public string GetAccessToken()
+{
+	return PlaytoliaAuth.GetState().AccessToken;
+}
+```
+
+### Listening to changes
+
+AuthState is a simple object that holds access token, refresh token, and expiration info. In order to get the AuthState from your C# code, you can use **GetState** function.
+
+```c# UIMenu.cs
+public void Start()
+{
+	PlaytoliaAuth.AddListener(() => {
+		var state = PlaytoliaAuth.GetState();
+		var isLoggedIn = state != null;
+		// Set LoginMenu gameobject active, if the user is not signed in.
+		LoginMenu.SetActive(!isLoggedIn); 
+	});
+}
+```
+
+Listening to changes in the auth state is very useful since player session may expire. The listener functions you've added will be called after any auth state change (including logins and token refresh). This is specifically useful to know when your player has logged in, to update the UI.
 
 <Note>
   Work in progress
