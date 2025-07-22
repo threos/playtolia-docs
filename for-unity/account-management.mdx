@@ -2,3 +2,17 @@
 description: "Use Sessions API to access user information such as username, email, and player ID."
 title: "Account Management"
 ---
+
+### Requirements
+
+- Playtolia SDK (with Authentication enabled)
+
+### Sessions API
+
+Playtolia Sessions API is the main access point for user-related information. Using Sessions API you can get user IDs, name, email, and locale. Just like other components, Sessions are managed with a Stateful object: PlaytoliaSession. PlaytoliaSession listens to changes in the auth state to automatically update user information. 
+
+If the player has not signed in or logged out, state will be `null`
+
+<Note>
+  Work in progress..
+</Note>

@@ -26,7 +26,8 @@
             "pages": [
               "for-unity/introduction",
               "for-unity/getting-started",
-              "for-unity/authentication"
+              "for-unity/authentication",
+              "for-unity/account-management"
             ]
           },
           {
