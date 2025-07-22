@@ -32,6 +32,10 @@ description: "Learn how to integrate Playtolia to your Unity game."
           className="mr-auto"
           style={{ width:"56%" }}
         />
+
+        <Warning>
+          The GameObject must be named PlaytoliaGameObject to ensure Playtolia Core can send messages to the correct GameObject. Having a different name may cause state listeners to malfunction.
+        </Warning>
       </Step>
       <Step title="Add PlaytoliaGameObject script">
         Click on your new game object, and use the inspector (the panel on the right-side of your editor) to add PlaytoliaGameObject script as a new component.
