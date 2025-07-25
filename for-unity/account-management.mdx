@@ -13,6 +13,52 @@ Playtolia Sessions API is the main access point for user-related information. Us
 
 If the player has not signed in or logged out, state will be `null`
 
-<Note>
-  Work in progress...
-</Note>
+### Getting the current session
+
+Import the PlaytoliaSDK.Runtime to your script by adding the using directive
+
+```c# ProfileMenu.cs
+using PlaytoliaSDK.Runtime;
+```
+
+Call the **GetUser** function to get the current user session
+
+```c# ProfileMenu.cs
+User user = PlaytoliaSession.GetUser();
+if(user == null) return; // user is not logged in
+
+string email = user.Email;
+string uid = user.Uid;
+string playerId = user.PlayerId;
+string username = user.Username; 
+```
+
+### Listen to user state changes
+
+During the runtime, PlaytoliaSession state might change several times due to:
+
+- **Authentication updates:** login, log out, token refresh
+- **Updates to user:** Changing username, adding avatar, etc.
+- **Manual refresh** via PlaytoliaSession.Refresh()
+
+In order to make sure your game logic and UI stays up-to-date you can add listeners to PlaytoliaSession, just like with any other stateful component.
+
+```c# ProfileMenu.cs
+public void Start()
+{
+	PlaytoliaSession.AddListener(() => {
+		User user = PlaytoliaSession.GetUser();
+		if(user == null) return;
+
+		username = user.Username; 
+	});
+}
+```
+
+### Need to save custom user properties?
+
+Use the new Attributes API to save custom properties (such as level and flairs) to player profile and synchronize between devices.
+
+<Card title="Attributes" icon="list-tree">
+  Save and read custom data such as progress, preferences, and roles. All backed up to the cloud and synchronised between your players devices.
+</Card>
