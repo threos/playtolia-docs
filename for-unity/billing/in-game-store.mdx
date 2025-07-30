@@ -1,0 +1,65 @@
+---
+title: "In-game Stores"
+description: "Learn how to setup the backend of your in-game store within minutes using PlaytoliaStore"
+---
+
+### Requirements
+
+- Playtolia SDK (with Authentication and Billing enabled)
+
+### Store API
+
+Playtolia Store API allows you to list, query, and search store items. Store API supports different types of items such as `non-consumables`, `consumables`, and `subscriptions`. Store API also provides a simple function to start the purchase flow for any item in your store. Store API works with Play Store and App Store APIs in order to securely process payments, grant items to your players, and handle failures.
+
+### List all available items
+
+Import the PlaytoliaSDK.Runtime to your script by adding the using directive
+
+```c# StoreController.cs
+using PlaytoliaSDK.Runtime;
+```
+
+Call the **GetItems** function to retrieve all available store items
+
+```c# StoreController.cs
+// All items
+var allItems = PlaytoliaStore.GetItems();
+```
+
+<Warning>
+  Make sure your player is authenticated before calling GetItems or any other PlaytoliaStore function. Store API requires authentication and will return empty lists or null values until the Store API can successfully log in and fetch the items from the remote server.
+</Warning>
+
+<Info>
+  Once you authenticate your user, PlaytoliaStore will automatically refresh and fetch the latest available items. If you need to refresh the store items manually, simply use **PlaytoliaStore.Refresh()** function.
+</Info>
+
+### Searching
+
+Call the **SearchItems** function to search items by their name, description, or SKU
+
+```c# StoreController.cs
+// Search for items with "Gold" in their name, descriotion, or sku
+var searchResult = PlaytoliaStore.SearchItems("Gold");
+```
+
+### Get an item
+
+PlaytoliaStore includes two getter functions to help you get a specific StoreItem by item ID or SKU
+
+```c# StoreController.cs
+// Get an item by ID
+var itemById = PlaytoliaStore.GetItemById("gold_500");
+
+// Get an item by SKU
+var itemBySku = PlaytoliaStore.GetItemBySku("com.mygame.coinpack_500");
+```
+
+### Starting a purchase
+
+When your player is ready to purchase an item, simply use the **BeginPurchaseFlow** function and pass a StoreItem
+
+```c# StoreController.cs
+StoreItem item = PlaytoliaStore.GetItemBySku("com.mygame.coinpack_500");
+PlaytoliaStore.BeginPurchaseFlow(item);
+```
