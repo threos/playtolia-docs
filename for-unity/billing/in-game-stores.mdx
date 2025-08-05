@@ -55,7 +55,9 @@ var itemById = PlaytoliaStore.GetItemById("gold_500");
 var itemBySku = PlaytoliaStore.GetItemBySku("com.mygame.coinpack_500");
 ```
 
-### Starting a purchase
+## Purchases
+
+### Make a purchase
 
 When your player is ready to purchase an item, simply use the **BeginPurchaseFlow** function and pass a StoreItem
 
@@ -63,3 +65,44 @@ When your player is ready to purchase an item, simply use the **BeginPurchaseFlo
 StoreItem item = PlaytoliaStore.GetItemBySku("com.mygame.coinpack_500");
 PlaytoliaStore.BeginPurchaseFlow(item);
 ```
+
+### Handle the result
+
+Purchase flows are a composition of several requests:
+
+1. Client calls to App Store or Google Play Store to make sure the billing is available, fetch the item, and display the IAP dialog.
+2. A verification call to Playtolia servers, to check the integrity of the purchase and update user wallets, subscriptions, and entitlements.
+3. A final call to the billing clients to acknowledge (or consume) the purchase.
+
+The SDK makes all necessary requests and calls with a single BeginPurchaseFlow function. Most of the process is handled in different threads in an asynchronous manner, in order to prevent your game from lagging or freezing.
+
+All of this is managed in Playtolia.Core, which is outside the Unity/C# scope where your code runs. Therefore, you cannot simply use the BeginPurchaseFlow result directly, as it returns instantly regardless of the status.
+
+**EventBus** component offers a fast, non-blocking, and safe way to register callbacks to consume results of async flows.
+
+### Using EventBus to handle IAP results
+
+Simply create an EventHandle with your success and error callbacks
+
+```c#
+var onSuccess = (Packet p) => {
+	ShowPurchaseSuccessfulDialog();
+};
+
+var onError = (Packet p) => {
+	SDKResult r = (SDKResult) p.Data;
+	var message = r.Message;
+	Debug.Log("Purchase failed: " + message);
+};
+
+var handle = EventBus.Register(onSuccess, onError);
+```
+
+We have now created an EventHandle. However it is not registered and can not be called, yet. In order to make our handle functional, we have to provide the handle along with our BeginPurchaseFlow call.
+
+```c#
+StoreItem item = PlaytoliaStore.GetItemBySku("com.mygame.coinpack_500");
+PlaytoliaStore.BeginPurchaseFlow(item, handle); // notice the extra 'handle' parameter
+```
+
+Now we are ready to receive callbacks from our purchase flow. You can use the SDKResult from the Packet object that is provided for both callbacks to retrieve more information about the errors or requests. Even native errors are wrapped in a SDKResult object to make the logging and error handling straightforward.
