@@ -102,7 +102,7 @@ We have now created an EventHandle. However it is not registered and can not be 
 
 ```c#
 StoreItem item = PlaytoliaStore.GetItemBySku("com.mygame.coinpack_500");
-PlaytoliaStore.BeginPurchaseFlow(item, handle); // notice the extra 'handle' parameter
+PlaytoliaStore.BeginPurchaseFlow(item, handle); // notice the 'handle' parameter
 ```
 
 Now we are ready to receive callbacks from our purchase flow. You can use the SDKResult from the Packet object that is provided for both callbacks to retrieve more information about the errors or requests. Even native errors are wrapped in a SDKResult object to make the logging and error handling straightforward.
