@@ -78,7 +78,7 @@ The SDK makes all necessary requests and calls with a single BeginPurchaseFlow f
 
 All of this is managed in Playtolia.Core, which is outside the Unity/C# scope where your code runs. Therefore, you cannot simply use the BeginPurchaseFlow result directly, as it returns instantly regardless of the status.
 
-**EventBus** component offers a fast, non-blocking, and safe way to register callbacks to consume results of async flows.
+**EventBus** component offers a fast, non-blocking, and safe way to consume results of async flows by storing and passing references of local callback objects named EventHandles.
 
 ### Using EventBus to handle IAP results
 
