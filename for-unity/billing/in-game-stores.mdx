@@ -132,7 +132,6 @@ public class PurchaseHandler : MonoBehaviour
     {
         var onSuccess = (Packet p) => {
             ShowPurchaseSuccessfulDialog(item);
-            RefreshPlayerData();
         };
 
         var onError = (Packet p) => {
@@ -159,13 +158,6 @@ public class PurchaseHandler : MonoBehaviour
     {
         Debug.Log($"Purchase failed: {errorMessage}");
         // Show error dialog to user
-    }
-
-    void RefreshPlayerData()
-    {
-        // Refresh wallet and entitlements to show new items
-        PlaytoliaWallet.Refresh();
-        PlaytoliaEntitlements.Refresh();
     }
 
     void DisplayItemRewards(StoreItem item)
