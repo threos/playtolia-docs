@@ -72,7 +72,10 @@ public class PremiumManager : MonoBehaviour
     {
         var premiumEntitlement = PlaytoliaEntitlements.GetEntitlementByGrantId("premium_pass");
 
-        if (premiumEntitlement != null && !premiumEntitlement.IsExpired)
+		// When using GetEntitlementByGrantId, you don't need to check IsExpired property.
+		// PlaytoliaEntitlements only return valid entitlements for queries around a specific item, grant, or ID.
+		// If the player has no valid entitlements for that item, function will return null
+        if (premiumEntitlement != null)
         {
             EnablePremiumFeatures();
         }
@@ -148,8 +151,7 @@ public class ContentManager : MonoBehaviour
         var allEntitlements = PlaytoliaEntitlements.GetAllEntitlements();
 
         // Check for VIP access
-        var vipEntitlement = allEntitlements.FirstOrDefault(e =>
-            e.GrantId == "vip_access" && !e.IsExpired);
+        var vipEntitlement = PlaytoliaEntitlements.GetEntitlementByGrantId("item.vip_access")
 
         if (vipEntitlement != null)
         {
@@ -226,6 +228,7 @@ public void Start()
 ### Common use cases
 
 **Subscription Management:**
+
 ```c# SubscriptionChecker.cs
 public bool HasActiveSubscription(string subscriptionGrantId)
 {
@@ -235,6 +238,7 @@ public bool HasActiveSubscription(string subscriptionGrantId)
 ```
 
 **Content Unlocking:**
+
 ```c# ContentUnlocker.cs
 public bool CanAccessContent(string contentGrantId)
 {
