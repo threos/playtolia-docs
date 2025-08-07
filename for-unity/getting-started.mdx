@@ -5,25 +5,55 @@ description: "Learn how to integrate Playtolia to your Unity game."
 
 ### Requirements
 
-- Unity 6000
+- Unity 6000 or later
 - [Xcode](https://developer.apple.com/xcode/) (for iOS builds)
 - [Cocoapods](https://cocoapods.org) (for iOS builds)
+- Android SDK (for Android builds)
 
 <Steps>
   <Step title="Getting the SDK">
     <Card title="Get Playtolia Unity SDK" icon="download" href="https://github.com/Playtolia/unity-sdk/releases/download/v1.0.0-alpha.17/PlaytoliaSDK-alpha-17.unitypackage">
       Latest release (1.0.0-alpha.17)
     </Card>
+
+    <Info>
+      The Unity package contains all necessary components including native libraries for iOS and Android, C# scripts, and prefabs. The package size is approximately 15MB.
+    </Info>
   </Step>
+
   <Step title="Importing to Unity">
-    Drag and drop the downloaded .unitypackage file into your editor. Make sure all folders are selected when Unity asks you to choose the folders to be imported into your project.
+    Drag and drop the downloaded .unitypackage file into your Unity editor. Make sure all folders are selected when Unity asks you to choose the folders to be imported into your project.
+
+    <Warning>
+      Ensure you import all folders including Plugins, Scripts, and Prefabs. Missing any folder may cause compilation errors or missing functionality.
+    </Warning>
+
+    After importing, you should see the following folder structure in your Assets:
+
+    ```
+    Assets/
+    ├── PlaytoliaSDK/
+    │   ├── Plugins/
+    │   │   ├── Android/
+    │   │   └── iOS/
+    │   ├── Runtime/
+    │   │   ├── Scripts/
+    │   │   └── Common/
+    │   ├── Editor/
+    │   └── Prefabs/
+    ```
   </Step>
+
   <Step title="Creating a Playtolia Game Object">
     Playtolia Game Object automatically initializes and configures Playtolia components in your Unity game. You'll need to add this game object to your initial scene in order to attach Playtolia UI and start Playtolia game services.
 
     #### Quick setup
 
-    Simply drag and drop the PlaytoliaGameObject prefab (located at Assets/Prefabs/...) to your main scene.
+    Simply drag and drop the PlaytoliaGameObject prefab (located at `Assets/PlaytoliaSDK/Prefabs/PlaytoliaGameObject.prefab`) to your main scene.
+
+    <Info>
+      The prefab is pre-configured with all necessary components. This is the recommended approach for most developers.
+    </Info>
 
     #### Manual setup
 
@@ -31,54 +61,294 @@ description: "Learn how to integrate Playtolia to your Unity game."
 
     <Steps>
       <Step title="Create a new game object">
-        Go to your scene and create an empty game object at the root by right clicking to your scene and clicking to GameObject \> Create Empty.
+        Go to your scene and create an empty game object at the root by right clicking in your scene hierarchy and selecting GameObject > Create Empty.
 
         <img
           src="/images/for-unity-create-empty-game-object.png"
-          alt="for-unity-create-empty-game-object.png"
-          title="for-unity-create-empty-game-object.png"
+          alt="Creating empty game object in Unity"
+          title="Creating empty game object in Unity"
           className="mr-auto"
           style={{ width:"56%" }}
         />
 
         <Warning>
-          The GameObject must be named PlaytoliaGameObject to ensure Playtolia Core can send messages to the correct GameObject. Having a different name may cause state listeners to malfunction.
+          The GameObject must be named "PlaytoliaGameObject" exactly (case-sensitive) to ensure Playtolia Core can send messages to the correct GameObject. Having a different name may cause state listeners to malfunction.
         </Warning>
       </Step>
+
       <Step title="Add PlaytoliaGameObject script">
         Click on your new game object, and use the inspector (the panel on the right-side of your editor) to add PlaytoliaGameObject script as a new component.
 
         <img
           src="/images/for-unity-add-playtolia-game-object-script.png"
-          alt="for-unity-add-playtolia-game-object-script.png"
-          title="for-unity-add-playtolia-game-object-script.png"
+          alt="Adding PlaytoliaGameObject script component"
+          title="Adding PlaytoliaGameObject script component"
           className="mr-auto"
           style={{ width:"47%" }}
         />
+
+        The PlaytoliaGameObject script handles:
+        - SDK initialization on scene start
+        - Message routing between native code and Unity
+        - State management for all Playtolia components
+        - Automatic cleanup on scene changes
       </Step>
     </Steps>
   </Step>
+
   <Step title="Configure Playtolia">
     You can configure Playtolia SDK within your editor. The Playtolia package will automatically take care of generating configuration files at build time.
 
-    See the Playtolia Settings page by navigating to Edit \> Project Settings \> Playtolia Settings. Make sure you enter your Game ID, and configure Playtolia components (Core, Auth, Support etc.)
+    Navigate to **Edit > Project Settings > Playtolia Settings** to access the configuration panel.
 
     <img
       src="/images/for-unity-playtolia-editor-settings.png"
-      alt="for-unity-playtolia-editor-settings.png"
-      title="for-unity-playtolia-editor-settings.png"
+      alt="Playtolia editor settings panel"
+      title="Playtolia editor settings panel"
       className="mr-auto"
       style={{ width:"83%" }}
     />
+
+    ### Essential Configuration
+
+    **Game ID:** Your unique game identifier from the Playtolia dashboard. This is required for all API calls.
+
+    **Environment:** Choose between Development and Production environments:
+    - **Development:** Use for testing and development builds
+    - **Production:** Use for live/release builds
+
+    **Logging Level:** Control SDK logging verbosity:
+    - **None:** No logging (recommended for production)
+    - **Error:** Only error messages
+    - **Warning:** Errors and warnings
+    - **Info:** General information (recommended for development)
+    - **Debug:** Detailed debugging information
+    - **Verbose:** All possible logging
+
+    ### Component Configuration
+
+    **Core:** Always enabled - provides essential SDK functionality
+
+    **Authentication:** Enable to use login/logout features
+    - Supports Google, Facebook, Apple, Discord, and email/password authentication
+    - Required for all other features
+
+    **Billing:** Enable for in-app purchases and store functionality
+    - Requires Authentication to be enabled
+    - Includes Wallet, Store, and Entitlements APIs
+
+    **Support:** Enable for in-game ticket-based customer support
+    - Allows players to submit and track support tickets
+    - Requires Authentication to be enabled
+
+    <Warning>
+      Always test your configuration in Development environment before switching to Production. Production environment requires your game to be approved and configured in the Playtolia dashboard.
+    </Warning>
+  </Step>
+
+  <Step title="Platform-specific setup">
+
+    ### iOS Setup
+
+    For iOS builds, additional configuration is required:
+
+    1. **Cocoapods Installation:** Ensure Cocoapods is installed on your Mac
+    ```bash
+    sudo gem install cocoapods
+    ```
+
+    2. **iOS Deployment Target:** Set minimum iOS version to 12.0 or higher in your Unity Player Settings
+
+    3. **Capabilities:** The following capabilities may be automatically added during build:
+       - App Groups (for data sharing)
+       - Keychain Sharing (for secure storage)
+
+    ### Android Setup
+
+    For Android builds:
+
+    1. **Minimum API Level:** Set to API level 21 (Android 5.0) or higher
+
+    2. **Target API Level:** Use the latest available API level
+
+    3. **Internet Permission:** Automatically added to AndroidManifest.xml
+
+    4. **Billing Permission:** Added automatically when Billing is enabled
   </Step>
 </Steps>
 
-### What's Next
+### Verifying Your Setup
 
-1. Run your app on a device to verify your setup
-2. Set the logging level from project settings to see what's going on in the background when your game is running on a device
-3. Start setting up authentication
+After completing the setup, verify everything is working correctly:
 
-<Card title="Authentication" icon="arrow-right-to-bracket" href="/for-unity/authentication">
-  Allow your users to sign-in to their accounts with Google, Facebook, Apple, Discord, or simply by using their email-password.
-</Card>
+#### 1. Build and Run Test
+
+Create a simple test scene with the PlaytoliaGameObject and build to your target platform.
+
+```c# TestPlaytolia.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+
+public class TestPlaytolia : MonoBehaviour
+{
+    void Start()
+    {
+        // Test basic SDK functionality
+        Debug.Log("Testing Playtolia SDK...");
+
+        // Check if authentication is available
+        var authState = PlaytoliaAuth.GetState();
+        Debug.Log($"Auth state: {(authState != null ? "Authenticated" : "Not authenticated")}");
+
+        // Test store if billing is enabled
+        var storeItems = PlaytoliaStore.GetItems();
+        Debug.Log($"Store items available: {storeItems.Count}");
+    }
+}
+```
+
+#### 2. Check Console Logs
+
+Look for Playtolia initialization messages in the console:
+
+```
+[Playtolia] SDK initialized successfully
+[Playtolia] Game ID: your-game-id
+[Playtolia] Environment: Development
+[Playtolia] Components: Core, Auth, Billing
+```
+
+#### 3. Verify Network Connectivity
+
+The SDK will automatically attempt to connect to Playtolia servers. Check for network-related logs:
+
+```
+[Playtolia] Connected to servers
+[Playtolia] Authentication service ready
+[Playtolia] Store service ready
+```
+
+### Troubleshooting Common Issues
+
+#### Build Errors
+
+**Issue:** "PlaytoliaGameObject script not found"
+- **Solution:** Ensure you imported all folders from the Unity package
+
+**Issue:** iOS build fails with Cocoapods errors
+- **Solution:** Update Cocoapods and ensure Xcode command line tools are installed
+
+**Issue:** Android build fails with permission errors
+- **Solution:** Check that your Unity Android settings allow internet access
+
+#### Runtime Issues
+
+**Issue:** "Game ID not configured" error
+- **Solution:** Set your Game ID in Project Settings > Playtolia Settings
+
+**Issue:** Authentication always returns null
+- **Solution:** Ensure Authentication is enabled in Playtolia Settings and you're connected to the internet
+
+**Issue:** Store returns empty item list
+- **Solution:** Verify Billing is enabled and your game has store items configured in the Playtolia dashboard
+
+### Performance Considerations
+
+#### SDK Impact
+
+The Playtolia SDK is designed to be lightweight:
+
+- **Memory usage:** ~2-5MB additional memory usage
+- **App size:** ~3-8MB increase in build size
+- **Network usage:** Minimal - only for authentication and API calls
+- **CPU usage:** Negligible impact on frame rate
+
+#### Best Practices
+
+**Initialize Early:** Place PlaytoliaGameObject in your first scene to ensure proper initialization
+
+**Handle Network Issues:** Always check for null returns from API calls and implement retry logic
+
+**Use Listeners:** Subscribe to state change listeners rather than polling for updates
+
+**Optimize Store Calls:** Cache store items and only refresh when necessary
+
+### Understanding SDK Architecture
+
+#### Core Components
+
+**Playtolia.Core:** Native library that handles:
+- Network communication
+- Authentication flows
+- Purchase processing
+- Data caching
+
+**PlaytoliaSDK.Runtime:** Unity wrapper that provides:
+- C# API interfaces
+- State management
+- Event handling
+- UI integration
+
+#### Data Flow
+
+1. **Unity Scripts** call PlaytoliaSDK.Runtime APIs
+2. **Runtime** forwards calls to Playtolia.Core native library
+3. **Core** communicates with Playtolia servers
+4. **Responses** flow back through the same chain
+5. **State listeners** are notified of changes
+
+### Next Steps
+
+Now that you have Playtolia integrated, you can start implementing specific features:
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="arrow-right-to-bracket" href="/for-unity/authentication">
+    Set up player login with multiple authentication providers
+  </Card>
+  <Card title="In-game Stores" icon="store" href="/for-unity/billing/in-game-stores">
+    Create and manage your in-app purchase store
+  </Card>
+  <Card title="Wallets" icon="wallet" href="/for-unity/billing/wallets">
+    Track and display virtual currency balances
+  </Card>
+  <Card title="Account Management" icon="circle-user" href="/for-unity/account-management">
+    Access and manage player profile information
+  </Card>
+</CardGroup>
+
+### Development Tips
+
+#### Testing Strategy
+
+1. **Start with Development environment** - safer for testing
+2. **Test authentication flows** - ensure login/logout works
+3. **Verify store integration** - test purchase flows end-to-end
+4. **Check state persistence** - ensure data survives app restarts
+5. **Test offline scenarios** - handle network disconnections gracefully
+
+#### Debugging
+
+Enable verbose logging during development:
+```c# DebugHelper.cs
+void Start()
+{
+    // Enable detailed logging for debugging
+    Debug.Log("Playtolia SDK Debug Mode Enabled");
+
+    // Add listeners to track all state changes
+    PlaytoliaAuth.AddListener(() => Debug.Log("Auth state changed"));
+    PlaytoliaStore.AddListener(() => Debug.Log("Store state changed"));
+    PlaytoliaWallet.AddListener(() => Debug.Log("Wallet state changed"));
+}
+```
+
+#### Production Checklist
+
+Before releasing your game:
+
+- [ ] Switch to Production environment
+- [ ] Set logging level to Error or None
+- [ ] Test all purchase flows with real money (small amounts)
+- [ ] Verify authentication works on different devices
+- [ ] Test offline/online transitions
+- [ ] Ensure proper error handling for all scenarios
