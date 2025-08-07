@@ -12,11 +12,10 @@ description: "Learn how to integrate Playtolia to your Unity game."
 
 <Steps>
   <Step title="Getting the SDK">
-    <Card title="Get Playtolia Unity SDK" icon="download" href="https://github.com/Playtolia/unity-sdk/releases/download/v1.0.0-alpha.17/PlaytoliaSDK-alpha-17.unitypackage">
-      Latest release (1.0.0-alpha.17)
+    <Card title="Get Playtolia Unity SDK" icon="download" href="https://github.com/Playtolia/unity-sdk/releases/download/v1.0.0-alpha.18/PlaytoliaSDK-alpha-18.unitypackage">
+      Latest release (1.0.0-alpha.18)
     </Card>
   </Step>
-
   <Step title="Importing to Unity">
     Drag and drop the downloaded .unitypackage file into your Unity editor. Make sure all folders are selected when Unity asks you to choose the folders to be imported into your project.
 
@@ -24,7 +23,6 @@ description: "Learn how to integrate Playtolia to your Unity game."
       Ensure you import all folders including Plugins, Scripts, and Prefabs. Missing any folder may cause compilation errors or missing functionality.
     </Warning>
   </Step>
-
   <Step title="Creating a Playtolia Game Object">
     Add the PlaytoliaGameObject to your initial scene to initialize Playtolia components.
 
@@ -38,32 +36,32 @@ description: "Learn how to integrate Playtolia to your Unity game."
 
     <Steps>
       <Step title="Create a new game object">
-        Go to your scene and create an empty game object at the root by right clicking in your scene hierarchy and selecting GameObject > Create Empty.
+        Go to your scene and create an empty game object at the root by right clicking in your scene hierarchy and selecting GameObject \> Create Empty.
 
         <Warning>
           The GameObject must be named "PlaytoliaGameObject" exactly (case-sensitive) to ensure Playtolia Core can send messages to the correct GameObject.
         </Warning>
       </Step>
-
       <Step title="Add PlaytoliaGameObject script">
         Click on your new game object, and use the inspector to add PlaytoliaGameObject script as a new component.
 
         The PlaytoliaGameObject script handles:
+
         - SDK initialization on scene start
         - Message routing between native code and Unity
         - State management for all Playtolia components
       </Step>
     </Steps>
   </Step>
-
   <Step title="Configure Playtolia">
-    Navigate to **Edit > Project Settings > Playtolia Settings** to access the configuration panel.
+    Navigate to **Edit \> Project Settings \> Playtolia Settings** to access the configuration panel.
 
     ### Essential Configuration
 
     **Game ID:** Your unique game identifier from the Playtolia dashboard. This is required for all API calls.
 
     **Logging Level:** Control SDK logging verbosity:
+
     - **None:** No logging (recommended for production)
     - **Error:** Only error messages
     - **Warning:** Errors and warnings
@@ -73,10 +71,12 @@ description: "Learn how to integrate Playtolia to your Unity game."
     ### Component Configuration
 
     **Authentication:** Enable to use login/logout features
+
     - **Authentication Required:** If enabled, login dialog appears automatically
     - **Providers:** Enable Google, Facebook, Apple, Discord, and Guest authentication
 
     **Billing:** Enable for in-app purchases and store functionality
+
     - Requires Authentication to be enabled
     - Includes Wallet, Store, and Entitlements APIs
 
@@ -86,18 +86,16 @@ description: "Learn how to integrate Playtolia to your Unity game."
       Always test your configuration in Development environment before switching to Production.
     </Warning>
   </Step>
-
   <Step title="Platform-specific setup">
-
     ### iOS Setup
 
     1. **Cocoapods Installation:** Ensure Cocoapods is installed on your Mac
+
     ```bash
     sudo gem install cocoapods
     ```
 
     2. **iOS Deployment Target:** Set minimum iOS version to 12.0 or higher in Unity Player Settings
-
     3. **Add iOS Entitlements:** Enable this option in Playtolia Settings if using Sign in with Apple
 
     ### Android Setup
@@ -137,12 +135,14 @@ public class TestPlaytolia : MonoBehaviour
 ### Common Issues
 
 **Build Errors:**
+
 - "PlaytoliaGameObject script not found" → Ensure you imported all folders from the Unity package
 - iOS build fails with Cocoapods errors → Update Cocoapods and ensure Xcode command line tools are installed
 - Android build fails with permission errors → Check that Unity Android settings allow internet access
 
 **Runtime Issues:**
-- "Game ID not configured" error → Set your Game ID in Project Settings > Playtolia Settings
+
+- "Game ID not configured" error → Set your Game ID in Project Settings \> Playtolia Settings
 - Authentication always returns null → Ensure Authentication is enabled and you're connected to the internet
 - Store/Wallet/Entitlements return empty → These APIs only return data after successful authentication
 
