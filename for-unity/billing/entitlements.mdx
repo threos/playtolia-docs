@@ -1,0 +1,252 @@
+---
+title: "Entitlements"
+description: "Manage non-consumable items using PlaytoliaEntitlements"
+---
+
+### Requirements
+
+- Playtolia SDK (with Authentication and Billing enabled)
+
+### Entitlements API
+
+Playtolia Entitlements API allows you to manage player entitlements such as premium subscriptions, permanent unlocks, and time-limited access to content. Entitlements are automatically granted when players make purchases and can be checked to unlock features, grant access to premium content, or enable special abilities in your game.
+
+### Getting all player entitlements
+
+Import the PlaytoliaSDK.Runtime to your script by adding the using directive
+
+```c# EntitlementsController.cs
+using PlaytoliaSDK.Runtime;
+```
+
+Call the **GetAllEntitlements** function to retrieve all player entitlements
+
+```c# EntitlementsController.cs
+// Get all player entitlements
+var entitlements = PlaytoliaEntitlements.GetAllEntitlements();
+```
+
+<Warning>
+  Make sure your player is authenticated before calling GetAllEntitlements or any other PlaytoliaEntitlements function. Entitlements API requires authentication and will return empty lists or null values until the player is successfully logged in.
+</Warning>
+
+<Info>
+  Entitlements are automatically updated when players make purchases. If you need to refresh entitlements manually, use **PlaytoliaEntitlements.Refresh()** function.
+</Info>
+
+### Getting specific entitlements
+
+You can retrieve specific entitlements using different identifiers
+
+```c# EntitlementsController.cs
+// Get entitlement by grant ID (returns single entitlement)
+var entitlement = PlaytoliaEntitlements.GetEntitlementByGrantId("premium_pass");
+
+// Get multiple entitlements by grant ID (returns list)
+var entitlements = PlaytoliaEntitlements.GetEntitlementsByGrantId("premium_pass");
+
+// Get entitlement by store item ID
+var entitlementByItem = PlaytoliaEntitlements.GetEntitlementByItemId("premium_subscription");
+```
+
+### Checking for premium access
+
+Here's a practical example of how to check if a player has premium access:
+
+```c# PremiumManager.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+
+public class PremiumManager : MonoBehaviour
+{
+    void Start()
+    {
+        // Listen to entitlement changes
+        PlaytoliaEntitlements.AddListener(CheckPremiumStatus);
+
+        // Initial check
+        CheckPremiumStatus();
+    }
+
+    void CheckPremiumStatus()
+    {
+        var premiumEntitlement = PlaytoliaEntitlements.GetEntitlementByGrantId("premium_pass");
+
+        if (premiumEntitlement != null && !premiumEntitlement.IsExpired)
+        {
+            EnablePremiumFeatures();
+        }
+        else
+        {
+            DisablePremiumFeatures();
+        }
+    }
+
+    void EnablePremiumFeatures()
+    {
+        Debug.Log("Premium features enabled!");
+        // Enable premium UI, unlock content, etc.
+    }
+
+    void DisablePremiumFeatures()
+    {
+        Debug.Log("Premium features disabled");
+        // Show premium upgrade prompts
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaEntitlements.RemoveListener(CheckPremiumStatus);
+    }
+}
+```
+
+### Understanding PlayerEntitlement structure
+
+Each PlayerEntitlement contains the following information:
+
+- **Id:** Unique identifier for the entitlement
+- **Amount:** Quantity or amount of the entitlement
+- **CreatedAt:** When the entitlement was granted
+- **ExpiresAt:** When the entitlement expires
+- **GrantId:** The grant identifier (used for grouping)
+- **StoreItem:** The store item that granted this entitlement
+- **IsExpired:** Boolean property to check if entitlement has expired
+
+```c# EntitlementInfo.cs
+public void DisplayEntitlementInfo(PlayerEntitlement entitlement)
+{
+    Debug.Log($"Entitlement ID: {entitlement.Id}");
+    Debug.Log($"Grant ID: {entitlement.GrantId}");
+    Debug.Log($"Amount: {entitlement.Amount}");
+    Debug.Log($"Created: {entitlement.CreatedAt}");
+    Debug.Log($"Expires: {entitlement.ExpiresAt}");
+    Debug.Log($"Is Expired: {entitlement.IsExpired}");
+    Debug.Log($"Store Item: {entitlement.StoreItem.Name}");
+}
+```
+
+### Practical entitlements usage
+
+Here's how you might use entitlements to manage different types of content access:
+
+```c# ContentManager.cs
+using PlaytoliaSDK.Runtime;
+using System.Linq;
+using UnityEngine;
+
+public class ContentManager : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaEntitlements.AddListener(UpdateContentAccess);
+        UpdateContentAccess();
+    }
+
+    void UpdateContentAccess()
+    {
+        var allEntitlements = PlaytoliaEntitlements.GetAllEntitlements();
+
+        // Check for VIP access
+        var vipEntitlement = allEntitlements.FirstOrDefault(e =>
+            e.GrantId == "vip_access" && !e.IsExpired);
+
+        if (vipEntitlement != null)
+        {
+            UnlockVipContent();
+        }
+
+        // Check for special items
+        var specialItems = allEntitlements.Where(e =>
+            e.GrantId == "special_weapon" && !e.IsExpired);
+
+        foreach (var item in specialItems)
+        {
+            UnlockSpecialWeapon(item.StoreItem.Id, item.Amount);
+        }
+
+        // Check for time-limited boosts
+        var activeBoosts = allEntitlements.Where(e =>
+            e.GrantId.Contains("boost") && !e.IsExpired);
+
+        ApplyBoosts(activeBoosts.ToList());
+    }
+
+    void UnlockVipContent()
+    {
+        Debug.Log("VIP content unlocked!");
+        // Enable VIP features
+    }
+
+    void UnlockSpecialWeapon(string weaponId, long amount)
+    {
+        Debug.Log($"Unlocked {amount}x {weaponId}");
+        // Add weapon to inventory
+    }
+
+    void ApplyBoosts(System.Collections.Generic.List<PlayerEntitlement> boosts)
+    {
+        foreach (var boost in boosts)
+        {
+            Debug.Log($"Applying boost: {boost.GrantId}");
+            // Apply boost effects
+        }
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaEntitlements.RemoveListener(UpdateContentAccess);
+    }
+}
+```
+
+### Listen to entitlement changes
+
+Entitlements can change during runtime due to:
+
+- **Purchases:** New entitlements granted from successful purchases
+- **Expiration:** Time-limited entitlements expiring
+- **Renewals:** Subscription renewals
+- **Manual refresh** via PlaytoliaEntitlements.Refresh()
+
+```c# EntitlementTracker.cs
+public void Start()
+{
+    PlaytoliaEntitlements.AddListener(() => {
+        var entitlements = PlaytoliaEntitlements.GetAllEntitlements();
+
+        Debug.Log($"Player has {entitlements.Count} total entitlements");
+
+        var activeEntitlements = entitlements.Where(e => !e.IsExpired).ToList();
+        Debug.Log($"Active entitlements: {activeEntitlements.Count}");
+    });
+}
+```
+
+### Common use cases
+
+**Subscription Management:**
+```c# SubscriptionChecker.cs
+public bool HasActiveSubscription(string subscriptionGrantId)
+{
+    var subscription = PlaytoliaEntitlements.GetEntitlementByGrantId(subscriptionGrantId);
+    return subscription != null && !subscription.IsExpired;
+}
+```
+
+**Content Unlocking:**
+```c# ContentUnlocker.cs
+public bool CanAccessContent(string contentGrantId)
+{
+    var entitlements = PlaytoliaEntitlements.GetEntitlementsByGrantId(contentGrantId);
+    return entitlements.Any(e => !e.IsExpired);
+}
+```
+
+### Need to implement purchases?
+
+Use the Store API to handle purchases that automatically grant entitlements to your players.
+
+<Card title="In-game Stores" icon="store" href="/for-unity/billing/in-game-stores">
+  Learn how to setup the backend of your in-game store within minutes using PlaytoliaStore
+</Card>

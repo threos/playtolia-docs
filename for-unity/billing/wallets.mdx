@@ -1,0 +1,165 @@
+---
+title: "Wallets"
+description: "Manage virtual currencies and player balances using PlaytoliaWallet"
+---
+
+### Requirements
+
+- Playtolia SDK (with Authentication and Billing enabled)
+
+### Wallet API
+
+Playtolia Wallet API allows you to manage virtual currencies and track player balances. The Wallet API supports multiple currencies, automatic balance updates after purchases, and real-time synchronization across devices. Use PlaytoliaWallet to get currency information, check player balances, and listen to balance changes.
+
+### Getting player wallets
+
+Import the PlaytoliaSDK.Runtime to your script by adding the using directive
+
+```c# WalletController.cs
+using PlaytoliaSDK.Runtime;
+```
+
+Call the **GetWallets** function to retrieve all player wallet items
+
+```c# WalletController.cs
+// Get all player wallets
+var wallets = PlaytoliaWallet.GetWallets();
+```
+
+<Warning>
+  Make sure your player is authenticated before calling GetWallets or any other PlaytoliaWallet function. Wallet API requires authentication and will return empty lists or null values until the player is successfully logged in.
+</Warning>
+
+<Info>
+  Once you authenticate your user, PlaytoliaWallet will automatically refresh and fetch the latest wallet balances. If you need to refresh the wallet data manually, simply use **PlaytoliaWallet.Refresh()** function.
+</Info>
+
+### Getting specific wallet by currency
+
+You can get a specific wallet using different currency identifiers
+
+```c# WalletController.cs
+// Get wallet by currency ID
+var walletById = PlaytoliaWallet.GetWalletForCurrencyWithId("gold_currency_id");
+
+// Get wallet by currency code
+var walletByCode = PlaytoliaWallet.GetWalletForCurrencyWithCode("GOLD");
+
+// Get wallet by Currency object
+Currency goldCurrency = PlaytoliaWallet.GetCurrencyByCode("GOLD");
+var walletByCurrency = PlaytoliaWallet.GetWallet(goldCurrency);
+```
+
+### Working with currencies
+
+PlaytoliaWallet provides functions to retrieve and work with currency definitions
+
+```c# WalletController.cs
+// Get all available currencies
+var currencies = PlaytoliaWallet.GetCurrencies();
+
+// Get currency by ID
+var currencyById = PlaytoliaWallet.GetCurrencyById("gold_currency_id");
+
+// Get currency by code
+var currencyByCode = PlaytoliaWallet.GetCurrencyByCode("GOLD");
+```
+
+### Displaying wallet balances
+
+Here's how you can display player balances in your UI
+
+```c# WalletDisplay.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class WalletDisplay : MonoBehaviour
+{
+    [SerializeField] private Text goldBalanceText;
+    [SerializeField] private Text gemsBalanceText;
+
+    void Start()
+    {
+        // Listen to wallet changes
+        PlaytoliaWallet.AddListener(UpdateWalletDisplay);
+
+        // Initial display update
+        UpdateWalletDisplay();
+    }
+
+    void UpdateWalletDisplay()
+    {
+        // Update gold balance
+        var goldWallet = PlaytoliaWallet.GetWalletForCurrencyWithCode("GOLD");
+        if (goldWallet != null)
+        {
+            goldBalanceText.text = goldWallet.Balance;
+        }
+
+        // Update gems balance
+        var gemsWallet = PlaytoliaWallet.GetWalletForCurrencyWithCode("GEMS");
+        if (gemsWallet != null)
+        {
+            gemsBalanceText.text = gemsWallet.Balance;
+        }
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaWallet.RemoveListener(UpdateWalletDisplay);
+    }
+}
+```
+
+### Listen to wallet changes
+
+Wallet balances can change during runtime due to:
+
+- **Purchases:** Successful in-app purchases that grant currency
+- **Gameplay:** Spending currency on in-game items
+- **Rewards:** Earning currency through achievements or daily rewards
+- **Manual refresh** via PlaytoliaWallet.Refresh()
+
+To keep your UI up-to-date, add listeners to PlaytoliaWallet:
+
+```c# CurrencyManager.cs
+public void Start()
+{
+    PlaytoliaWallet.AddListener(() => {
+        var wallets = PlaytoliaWallet.GetWallets();
+
+        foreach (var wallet in wallets)
+        {
+            Debug.Log($"Currency: {wallet.Currency.Name}, Balance: {wallet.Balance}");
+        }
+    });
+}
+```
+
+### Understanding WalletItem structure
+
+Each WalletItem contains the following information:
+
+- **Id:** Unique identifier for the wallet item
+- **Balance:** Current balance as a string (supports large numbers)
+- **Currency:** Currency object containing ID, code, and name
+
+```c# WalletInfo.cs
+public void DisplayWalletInfo(WalletItem wallet)
+{
+    Debug.Log($"Wallet ID: {wallet.Id}");
+    Debug.Log($"Balance: {wallet.Balance}");
+    Debug.Log($"Currency Name: {wallet.Currency.Name}");
+    Debug.Log($"Currency Code: {wallet.Currency.Code}");
+    Debug.Log($"Currency ID: {wallet.Currency.Id}");
+}
+```
+
+### Need to handle purchases?
+
+Use the Store API to implement in-app purchases that automatically update wallet balances.
+
+<Card title="In-game Stores" icon="store" href="/for-unity/billing/in-game-stores">
+  Learn how to setup the backend of your in-game store within minutes using PlaytoliaStore
+</Card>
