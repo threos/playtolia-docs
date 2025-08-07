@@ -11,6 +11,10 @@ description: "Learn how to setup the backend of your in-game store within minute
 
 Playtolia Store API allows you to list, query, and search store items. Store API supports different types of items such as `non-consumables`, `consumables`, and `subscriptions`. Store API also provides a simple function to start the purchase flow for any item in your store. Store API works with Play Store and App Store APIs in order to securely process payments, grant items to your players, and handle failures.
 
+<Warning>
+  Store data is only available after successful authentication. PlaytoliaStore functions will return empty lists or null values until the player is logged in.
+</Warning>
+
 ### Getting all available items
 
 Import the PlaytoliaSDK.Runtime to your script by adding the using directive
@@ -25,10 +29,6 @@ Call the **GetItems** function to retrieve all available store items
 // Get all items
 var allItems = PlaytoliaStore.GetItems();
 ```
-
-<Warning>
-  Make sure your player is authenticated before calling GetItems or any other PlaytoliaStore function. Store API requires authentication and will return empty lists or null values until the Store API can successfully log in and fetch the items from the remote server.
-</Warning>
 
 <Info>
   Once you authenticate your user, PlaytoliaStore will automatically refresh and fetch the latest available items. If you need to refresh the store items manually, simply use **PlaytoliaStore.Refresh()** function.
@@ -93,172 +93,6 @@ var itemById = PlaytoliaStore.GetItemById("gold_500");
 var itemBySku = PlaytoliaStore.GetItemBySku("com.mygame.coinpack_500");
 ```
 
-### Creating a store UI
-
-Here's a comprehensive example of building a store interface:
-
-```c# StoreUIManager.cs
-using PlaytoliaSDK.Runtime;
-using UnityEngine;
-using UnityEngine.UI;
-using System.Collections.Generic;
-using System.Linq;
-
-public class StoreUIManager : MonoBehaviour
-{
-    [Header("UI Components")]
-    [SerializeField] private Transform storeItemsParent;
-    [SerializeField] private GameObject storeItemPrefab;
-    [SerializeField] private InputField searchField;
-    [SerializeField] private Dropdown categoryDropdown;
-    [SerializeField] private Button refreshButton;
-
-    private List<StoreItem> allItems = new List<StoreItem>();
-    private List<GameObject> itemUIObjects = new List<GameObject>();
-
-    void Start()
-    {
-        // Listen to store changes
-        PlaytoliaStore.AddListener(OnStoreUpdated);
-
-        // Set up UI listeners
-        searchField.onValueChanged.AddListener(OnSearchChanged);
-        categoryDropdown.onValueChanged.AddListener(OnCategoryChanged);
-        refreshButton.onClick.AddListener(RefreshStore);
-
-        // Initial store load
-        OnStoreUpdated();
-    }
-
-    void OnStoreUpdated()
-    {
-        allItems = PlaytoliaStore.GetItems();
-        DisplayItems(allItems);
-    }
-
-    void DisplayItems(List<StoreItem> items)
-    {
-        // Clear existing UI
-        foreach (var obj in itemUIObjects)
-        {
-            Destroy(obj);
-        }
-        itemUIObjects.Clear();
-
-        // Create UI for each item
-        foreach (var item in items)
-        {
-            GameObject itemUI = Instantiate(storeItemPrefab, storeItemsParent);
-            SetupItemUI(itemUI, item);
-            itemUIObjects.Add(itemUI);
-        }
-    }
-
-    void SetupItemUI(GameObject itemUI, StoreItem item)
-    {
-        // Get UI components
-        Text nameText = itemUI.transform.Find("Name").GetComponent<Text>();
-        Text priceText = itemUI.transform.Find("Price").GetComponent<Text>();
-        Button purchaseButton = itemUI.transform.Find("PurchaseButton").GetComponent<Button>();
-        Text rewardsText = itemUI.transform.Find("Rewards").GetComponent<Text>();
-
-        // Set item information
-        nameText.text = item.Name;
-        priceText.text = GetItemPrice(item);
-        rewardsText.text = GetItemRewards(item);
-
-        // Set purchase button
-        purchaseButton.onClick.RemoveAllListeners();
-        purchaseButton.onClick.AddListener(() => PurchaseItem(item));
-    }
-
-    string GetItemPrice(StoreItem item)
-    {
-        // This would typically come from platform billing
-        // For now, we'll show a placeholder
-        return "$0.99"; // You'd get this from platform-specific pricing
-    }
-
-    string GetItemRewards(StoreItem item)
-    {
-        if (item.Grants == null || item.Grants.Length == 0)
-            return "No rewards";
-
-        var rewards = new List<string>();
-        foreach (var grant in item.Grants)
-        {
-            if (grant.Currency != null)
-            {
-                rewards.Add($"{grant.GrantAmount} {grant.Currency.Name}");
-            }
-            else
-            {
-                rewards.Add($"{grant.GrantId} x{grant.GrantAmount}");
-            }
-        }
-
-        return string.Join(", ", rewards);
-    }
-
-    void OnSearchChanged(string searchTerm)
-    {
-        if (string.IsNullOrEmpty(searchTerm))
-        {
-            DisplayItems(allItems);
-        }
-        else
-        {
-            var filteredItems = PlaytoliaStore.SearchItems(searchTerm);
-            DisplayItems(filteredItems);
-        }
-    }
-
-    void OnCategoryChanged(int categoryIndex)
-    {
-        List<StoreItem> filteredItems;
-
-        switch (categoryIndex)
-        {
-            case 0: // All
-                filteredItems = allItems;
-                break;
-            case 1: // Consumables
-                filteredItems = PlaytoliaStore.GetItemsByType("consumable");
-                break;
-            case 2: // Subscriptions
-                filteredItems = PlaytoliaStore.GetItemsByType("subscription");
-                break;
-            case 3: // Non-consumables
-                filteredItems = PlaytoliaStore.GetItemsByType("non-consumable");
-                break;
-            default:
-                filteredItems = allItems;
-                break;
-        }
-
-        DisplayItems(filteredItems);
-    }
-
-    void RefreshStore()
-    {
-        PlaytoliaStore.Refresh();
-    }
-
-    void PurchaseItem(StoreItem item)
-    {
-        // Start purchase flow
-        PlaytoliaStore.BeginPurchaseFlow(item);
-    }
-
-    void OnDestroy()
-    {
-        PlaytoliaStore.RemoveListener(OnStoreUpdated);
-    }
-}
-```
-
-## Purchases
-
 ### Making a purchase
 
 When your player is ready to purchase an item, simply use the **BeginPurchaseFlow** function and pass a StoreItem
@@ -280,8 +114,6 @@ Purchase flows are a composition of several requests:
 3. **Purchase acknowledgment:** A final call to the billing clients to acknowledge (or consume) the purchase
 
 The SDK makes all necessary requests and calls with a single BeginPurchaseFlow function. Most of the process is handled in different threads in an asynchronous manner, in order to prevent your game from lagging or freezing.
-
-All of this is managed in Playtolia.Core, which is outside the Unity/C# scope where your code runs. Therefore, you cannot simply use the BeginPurchaseFlow result directly, as it returns instantly regardless of the status.
 
 **EventBus** component offers a fast, non-blocking, and safe way to consume results of async flows by storing and passing references of local callback objects named EventHandles.
 
@@ -353,190 +185,6 @@ public class PurchaseHandler : MonoBehaviour
 }
 ```
 
-### Advanced purchase handling
-
-Here's a more sophisticated purchase manager that handles different scenarios:
-
-```c# AdvancedPurchaseManager.cs
-using PlaytoliaSDK.Runtime;
-using PlaytoliaSDK.Runtime.Common;
-using UnityEngine;
-using UnityEngine.UI;
-using System.Collections.Generic;
-
-public class AdvancedPurchaseManager : MonoBehaviour
-{
-    [Header("UI Components")]
-    [SerializeField] private GameObject purchaseLoadingPanel;
-    [SerializeField] private GameObject purchaseSuccessPanel;
-    [SerializeField] private GameObject purchaseErrorPanel;
-    [SerializeField] private Text errorMessageText;
-    [SerializeField] private Transform rewardsContainer;
-    [SerializeField] private GameObject rewardItemPrefab;
-
-    private Dictionary<string, EventHandle> activePurchases = new Dictionary<string, EventHandle>();
-
-    public void StartPurchase(StoreItem item)
-    {
-        // Prevent duplicate purchases
-        if (activePurchases.ContainsKey(item.Id))
-        {
-            Debug.Log("Purchase already in progress for this item");
-            return;
-        }
-
-        // Show loading UI
-        ShowPurchaseLoading(item);
-
-        // Create event handlers
-        var onSuccess = (Packet p) => {
-            OnPurchaseSuccess(item);
-            CleanupPurchase(item.Id);
-        };
-
-        var onError = (Packet p) => {
-            SDKResult result = (SDKResult) p.Data;
-            OnPurchaseError(item, result);
-            CleanupPurchase(item.Id);
-        };
-
-        // Register and store the handle
-        var handle = EventBus.Register(onSuccess, onError);
-        activePurchases[item.Id] = handle;
-
-        // Begin purchase flow
-        PlaytoliaStore.BeginPurchaseFlow(item, handle);
-    }
-
-    void ShowPurchaseLoading(StoreItem item)
-    {
-        purchaseLoadingPanel.SetActive(true);
-        purchaseSuccessPanel.SetActive(false);
-        purchaseErrorPanel.SetActive(false);
-
-        Debug.Log($"Starting purchase for: {item.Name}");
-    }
-
-    void OnPurchaseSuccess(StoreItem item)
-    {
-        Debug.Log($"Purchase completed successfully: {item.Name}");
-
-        // Hide loading, show success
-        purchaseLoadingPanel.SetActive(false);
-        purchaseSuccessPanel.SetActive(true);
-
-        // Display rewards
-        DisplayPurchaseRewards(item);
-
-        // Refresh player data
-        RefreshPlayerData();
-
-        // Track analytics
-        TrackPurchaseSuccess(item);
-    }
-
-    void OnPurchaseError(StoreItem item, SDKResult error)
-    {
-        Debug.Log($"Purchase failed for {item.Name}: {error.Message}");
-
-        // Hide loading, show error
-        purchaseLoadingPanel.SetActive(false);
-        purchaseErrorPanel.SetActive(true);
-        errorMessageText.text = GetUserFriendlyErrorMessage(error);
-
-        // Track analytics
-        TrackPurchaseError(item, error);
-    }
-
-    void DisplayPurchaseRewards(StoreItem item)
-    {
-        // Clear existing rewards
-        foreach (Transform child in rewardsContainer)
-        {
-            Destroy(child.gameObject);
-        }
-
-        // Create reward UI for each grant
-        foreach (var grant in item.Grants)
-        {
-            GameObject rewardUI = Instantiate(rewardItemPrefab, rewardsContainer);
-            SetupRewardUI(rewardUI, grant);
-        }
-    }
-
-    void SetupRewardUI(GameObject rewardUI, Grant grant)
-    {
-        Text amountText = rewardUI.transform.Find("Amount").GetComponent<Text>();
-        Text nameText = rewardUI.transform.Find("Name").GetComponent<Text>();
-        Image iconImage = rewardUI.transform.Find("Icon").GetComponent<Image>();
-
-        amountText.text = grant.GrantAmount.ToString();
-
-        if (grant.Currency != null)
-        {
-            nameText.text = grant.Currency.Name;
-            // Load currency icon
-        }
-        else
-        {
-            nameText.text = grant.GrantId;
-            // Load item icon
-        }
-    }
-
-    string GetUserFriendlyErrorMessage(SDKResult error)
-    {
-        // Convert technical errors to user-friendly messages
-        switch (error.Message.ToLower())
-        {
-            case "user_cancelled":
-                return "Purchase was cancelled";
-            case "payment_invalid":
-                return "Payment method is invalid";
-            case "item_unavailable":
-                return "This item is currently unavailable";
-            case "network_error":
-                return "Network connection error. Please try again.";
-            default:
-                return "Purchase failed. Please try again later.";
-        }
-    }
-
-    void RefreshPlayerData()
-    {
-        PlaytoliaWallet.Refresh();
-        PlaytoliaEntitlements.Refresh();
-    }
-
-    void TrackPurchaseSuccess(StoreItem item)
-    {
-        // Send analytics event
-        Debug.Log($"Analytics: Purchase Success - {item.Id}");
-    }
-
-    void TrackPurchaseError(StoreItem item, SDKResult error)
-    {
-        // Send analytics event
-        Debug.Log($"Analytics: Purchase Error - {item.Id}, Error: {error.Message}");
-    }
-
-    void CleanupPurchase(string itemId)
-    {
-        if (activePurchases.ContainsKey(itemId))
-        {
-            activePurchases.Remove(itemId);
-        }
-    }
-
-    public void ClosePurchasePanels()
-    {
-        purchaseLoadingPanel.SetActive(false);
-        purchaseSuccessPanel.SetActive(false);
-        purchaseErrorPanel.SetActive(false);
-    }
-}
-```
-
 ### Understanding Grant structure
 
 Each Grant represents a reward that will be given to the player upon purchase:
@@ -585,19 +233,7 @@ public void Start()
     PlaytoliaStore.AddListener(() => {
         var items = PlaytoliaStore.GetItems();
         Debug.Log($"Store updated with {items.Count} items");
-
-        // Check for new items
-        CheckForNewItems(items);
-
-        // Update store UI
-        UpdateStoreDisplay();
     });
-}
-
-void CheckForNewItems(List<StoreItem> currentItems)
-{
-    // Compare with previous items and notify of new additions
-    // Implementation depends on your caching strategy
 }
 ```
 

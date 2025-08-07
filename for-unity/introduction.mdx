@@ -5,58 +5,45 @@ description: "Learn more about Playtolia for Unity and how to get started."
 
 ## How does it work?
 
-Playtolia is a powerful SDK designed to help you build, monetize, and grow your games. We provide a comprehensive set of services that can be easily integrated into your Unity projects. This includes features like authentication, in-game purchases, virtual currencies, player profiles, analytics, ticketing, and more.
+Playtolia is a powerful SDK designed to help you build, monetize, and grow your games. We provide a comprehensive set of services that can be easily integrated into your Unity projects, including authentication, in-game purchases, virtual currencies, player profiles, and support systems.
 
 ### Playtolia Core
 
-The core of Playtolia is the Playtolia.Core library, which provides the essential functionality for your game. Playtolia.Core is a cross-platform native library that can be used within Android and iOS applications. It provides a set of APIs that allow you to interact with Playtolia services seamlessly.
+The core of Playtolia is the Playtolia.Core library, which provides the essential functionality for your game. Playtolia.Core is a cross-platform native library that can be used within Android and iOS applications.
 
 **Platform-specific Implementation:**
-- **iOS:** Playtolia.Core is compiled as a native Objective-C/Swift library that integrates directly with iOS frameworks
-- **Android:** The library is compiled for the Java Virtual Machine as a native Android library with JNI bindings
+- **iOS:** Native Objective-C/Swift library that integrates directly with iOS frameworks
+- **Android:** Native Android library with JNI bindings
 - **Unity:** A C# wrapper provides Unity-specific APIs while maintaining full native performance
-
-This architecture ensures that Playtolia can be used seamlessly across different platforms regardless of the underlying technology, while maintaining optimal performance and native platform integration.
 
 ### Playtolia for Unity
 
-Playtolia.Unity is a Unity package that automatically integrates the Playtolia.Core library into your Unity project. Once installed, Playtolia.Unity will automatically add necessary dependencies and configure your project to use Playtolia services.
+Playtolia.Unity is a Unity package that automatically integrates the Playtolia.Core library into your Unity project. Once installed, it will automatically add necessary dependencies and configure your project to use Playtolia services.
 
 **Key Features:**
 - **Automatic Integration:** No manual configuration of native dependencies required
 - **Cross-platform:** Single codebase works on both iOS and Android
-- **Performance Optimized:** Native code execution with minimal Unity overhead
 - **Event-driven:** Real-time state updates through listener patterns
 - **Thread-safe:** All operations handle threading automatically
 
-This package provides a set of Unity-specific APIs that allow you to use our services in a way that is familiar to Unity developers, with full IntelliSense support and comprehensive documentation.
-
 <Note>
-  During runtime, Playtolia.Unity acts as a **bridge** between your Unity **scene, C# scripts, and the Playtolia.Core** library. Playtolia.Unity is the **wrapper** that allows you to use Playtolia services in your Unity project without having to worry about Java references, Objective-C bridges, or native libraries.
+  During runtime, Playtolia.Unity acts as a **bridge** between your Unity scene, C# scripts, and the Playtolia.Core library. All data is only available after successful authentication.
 </Note>
 
 ## Core Components
 
 ### Authentication System
 
-Playtolia provides a comprehensive authentication system that supports multiple login providers:
+Supports multiple login providers with automatic token refresh and secure session management:
 
-**Supported Providers:**
 - Google (OAuth 2.0)
 - Facebook (Facebook Login)
 - Apple (Sign in with Apple)
 - Discord (OAuth 2.0)
-- Email/Password (Traditional authentication)
+- Email/Password
 - Anonymous/Guest mode
 
-**Features:**
-- Automatic token refresh
-- Secure session management
-- Cross-device synchronization
-- Offline capability with cached credentials
-
 ```c# AuthenticationExample.cs
-// Simple authentication example
 PlaytoliaAuth.AddListener(() => {
     var authState = PlaytoliaAuth.GetState();
     bool isLoggedIn = authState != null;
@@ -73,40 +60,25 @@ PlaytoliaAuth.AddListener(() => {
 
 ### Billing and Monetization
 
-Complete monetization solution with support for all major app stores:
+Complete monetization solution with support for Apple App Store and Google Play Store:
 
-**Store Integration:**
-- Apple App Store (iOS)
-- Google Play Store (Android)
-- Server-side receipt validation
-- Fraud protection and security
-
-**Purchase Types:**
-- **Consumables:** Items that can be purchased multiple times (coins, gems, energy)
-- **Non-consumables:** Permanent purchases (premium upgrades, character unlocks)
+- **Consumables:** Items that can be purchased multiple times
+- **Non-consumables:** Permanent purchases
 - **Subscriptions:** Recurring payments with automatic renewal handling
-
-**Virtual Economy:**
-- Multi-currency wallet system
-- Real-time balance updates
-- Transaction history and analytics
-- Entitlement management for premium features
+- **Virtual Economy:** Multi-currency wallet system with real-time balance updates
 
 ```c# MonetizationExample.cs
-// Purchase flow example
 public void PurchaseGoldPack()
 {
     var goldPack = PlaytoliaStore.GetItemById("gold_pack_500");
 
     var onSuccess = (Packet p) => {
         Debug.Log("Purchase successful!");
-        ShowRewardAnimation();
-        PlaytoliaWallet.Refresh(); // Update balances
+        PlaytoliaWallet.Refresh();
     };
 
     var onError = (Packet p) => {
         Debug.Log("Purchase failed: " + ((SDKResult)p.Data).Message);
-        ShowErrorDialog();
     };
 
     var handle = EventBus.Register(onSuccess, onError);
@@ -116,235 +88,50 @@ public void PurchaseGoldPack()
 
 ### Player Management
 
-Comprehensive player profile and session management:
-
-**User Profiles:**
-- Unique player identification across devices
-- Username and email management
-- Avatar and profile customization
-- Account creation and update timestamps
-- Locale and timezone detection
-
-**Session Management:**
-- Automatic session restoration
-- Cross-device data synchronization
-- Secure token handling
-- Logout and cleanup procedures
+Comprehensive player profile and session management with unique player identification across devices, username and email management, and locale detection.
 
 ```c# PlayerManagementExample.cs
-// Player profile example
 PlaytoliaSession.AddListener(() => {
     User user = PlaytoliaSession.GetUser();
 
     if (user != null) {
         welcomeText.text = $"Welcome back, {user.Username}!";
         playerIdText.text = $"Player ID: {user.PlayerId}";
-
-        // Customize experience based on user locale
         ApplyLocalization(user.Lang);
     }
 });
 ```
 
-## Architecture Deep Dive
-
-### State Management Pattern
-
-Playtolia uses a reactive state management pattern that ensures your game UI stays synchronized with player data:
-
-**Stateful Components:**
-- `PlaytoliaAuth` - Authentication state
-- `PlaytoliaSession` - User profile data
-- `PlaytoliaStore` - Available store items
-- `PlaytoliaWallet` - Currency balances
-- `PlaytoliaEntitlements` - Purchased items and subscriptions
-
-**Event-driven Updates:**
-```c# StateManagementExample.cs
-public class GameManager : MonoBehaviour
-{
-    void Start()
-    {
-        // Listen to all state changes
-        PlaytoliaAuth.AddListener(OnAuthChanged);
-        PlaytoliaWallet.AddListener(OnWalletChanged);
-        PlaytoliaEntitlements.AddListener(OnEntitlementsChanged);
-    }
-
-    void OnAuthChanged()
-    {
-        // Update UI based on authentication state
-        UpdateLoginButton();
-    }
-
-    void OnWalletChanged()
-    {
-        // Update currency displays
-        UpdateCurrencyUI();
-    }
-
-    void OnEntitlementsChanged()
-    {
-        // Enable/disable premium features
-        UpdatePremiumFeatures();
-    }
-}
-```
-
-### Network Architecture
-
-**Hybrid Approach:**
-- Critical operations (authentication, purchases) go through secure servers
-- Non-critical data (leaderboards, social features) can use cached responses
-- Automatic retry logic with exponential backoff
-- Offline mode support for core functionality
-
-**Security Features:**
-- End-to-end encryption for sensitive data
-- Server-side validation for all transactions
-- Anti-fraud protection and anomaly detection
-- GDPR and privacy compliance built-in
-
 ## Explore Features
-
-Explore what you can do using Playtolia SDK. Easily integrate different Playtolia services in your game to add more capabilities and enable next-level in-game features.
 
 <CardGroup cols={2}>
   <Card title="Authentication" icon="arrow-right-to-bracket" href="/for-unity/authentication">
-    Allow your users to sign-in to their accounts with Google, Facebook, Apple, Discord, or simply by using their email-password. Includes automatic session management and cross-device synchronization.
+    Allow your users to sign-in with Google, Facebook, Apple, Discord, or email/password. Includes automatic session management and cross-device synchronization.
   </Card>
   <Card title="Account Management" icon="circle-user" href="/for-unity/account-management">
-    Create and manage in-game profiles. Use Sessions API to access username, email, player ID, and manage user data across devices.
+    Create and manage in-game profiles. Access username, email, player ID, and manage user data across devices.
   </Card>
   <Card title="In-game Stores" icon="store" href="/for-unity/billing/in-game-stores">
     Setup your in-game store with consumables, non-consumables, and subscriptions. Includes secure purchase processing and receipt validation.
   </Card>
   <Card title="Virtual Wallets" icon="wallet" href="/for-unity/billing/wallets">
-    Manage multiple virtual currencies with real-time balance updates. Perfect for coins, gems, energy systems, and more.
+    Manage multiple virtual currencies with real-time balance updates. Perfect for coins, gems, and energy systems.
   </Card>
   <Card title="Entitlements" icon="certificate" href="/for-unity/billing/entitlements">
     Track premium subscriptions, permanent unlocks, and time-limited access. Automatically managed through purchases.
   </Card>
-  <Card title="Support System" icon="user-headset" href="/for-unity/support">
-    Provide in-game ticket-based support to your players. Use our messaging service to communicate and track support tickets.
-  </Card>
 </CardGroup>
-
-## Development Workflow
-
-### Quick Start Checklist
-
-<Steps>
-  <Step title="Install SDK">
-    Download and import the Unity package into your project
-  </Step>
-  <Step title="Configure Settings">
-    Set your Game ID and enable required components in Project Settings
-  </Step>
-  <Step title="Add GameObject">
-    Place PlaytoliaGameObject in your main scene
-  </Step>
-  <Step title="Test Integration">
-    Build and verify SDK initialization on device
-  </Step>
-  <Step title="Implement Features">
-    Add authentication, store, and other features as needed
-  </Step>
-</Steps>
-
-### Best Practices
-
-**Performance:**
-- Initialize SDK early in your game lifecycle
-- Use listeners instead of polling for state changes
-- Cache store items and refresh only when necessary
-- Handle network failures gracefully
-
-**User Experience:**
-- Provide clear feedback during authentication flows
-- Show loading states during purchase processes
-- Implement proper error messaging
-- Support both online and offline gameplay modes
-
-**Security:**
-- Always validate purchases server-side
-- Never store sensitive data locally
-- Use secure communication channels
-- Implement proper session management
-
-### Testing Strategy
-
-**Development Environment:**
-```c# TestingExample.cs
-public class PlaytoliaTest : MonoBehaviour
-{
-    [Header("Testing Tools")]
-    public bool enableVerboseLogging = true;
-    public bool simulateNetworkErrors = false;
-
-    void Start()
-    {
-        if (enableVerboseLogging)
-        {
-            // Enable detailed logging for debugging
-            Debug.Log("Playtolia Test Mode Enabled");
-        }
-
-        // Test all major components
-        StartCoroutine(TestAllComponents());
-    }
-
-    IEnumerator TestAllComponents()
-    {
-        yield return TestAuthentication();
-        yield return TestStore();
-        yield return TestWallet();
-        yield return TestEntitlements();
-    }
-}
-```
-
-**Production Readiness:**
-- Test on multiple devices and OS versions
-- Verify purchase flows with real transactions (small amounts)
-- Test network connectivity edge cases
-- Validate analytics and tracking integration
-- Ensure proper error handling and recovery
-
-## Performance Metrics
-
-**SDK Impact Analysis:**
-
-| Metric | Impact | Details |
-|--------|--------|---------|
-| **App Size** | +3-8MB | Native libraries and assets |
-| **Memory Usage** | +2-5MB | Runtime state and caching |
-| **Network Usage** | Minimal | Only for API calls and authentication |
-| **Battery Impact** | Negligible | Efficient native code execution |
-| **Frame Rate** | No impact | Background processing only |
-
-**Load Time Optimization:**
-- SDK initialization: ~100-300ms
-- Authentication: ~500-2000ms (network dependent)
-- Store loading: ~200-800ms (cached after first load)
-- Wallet sync: ~100-500ms
 
 ## Next Steps
 
-Ready to start building with Playtolia? Follow our comprehensive installation guide to get up and running in minutes.
+Ready to start building with Playtolia? Follow our integration guide to get up and running quickly.
 
 <Card title="Getting Started" icon="sparkle" href="/for-unity/getting-started">
-  Learn how to integrate Playtolia to your Unity game with step-by-step instructions, troubleshooting guides, and best practices.
+  Learn how to integrate Playtolia to your Unity game with step-by-step instructions.
 </Card>
 
 ## Need Help?
 
-Our team is here to support your integration:
-
-- **Documentation:** Comprehensive guides and API references
-- **Support Portal:** Submit tickets for technical assistance
-- **Community:** Join our developer community for tips and best practices
-- **Direct Contact:** Reach out to our team for enterprise support
 
 <Card title="Support" icon="life-ring" href="mailto:hello@bytelab.com.tr">
   Get help with your integration or report issues

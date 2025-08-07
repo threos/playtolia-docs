@@ -11,6 +11,10 @@ description: "Manage virtual currencies and player balances using PlaytoliaWalle
 
 Playtolia Wallet API allows you to manage virtual currencies and track player balances. The Wallet API supports multiple currencies, automatic balance updates after purchases, and synchronization across devices. Use PlaytoliaWallet to get currency information, check player balances, and listen to balance changes.
 
+<Warning>
+  Wallet data is only available after successful authentication. PlaytoliaWallet functions will return empty lists or null values until the player is logged in.
+</Warning>
+
 ### Getting player wallets
 
 Import the PlaytoliaSDK.Runtime to your script by adding the using directive
@@ -26,9 +30,6 @@ Call the **GetWallets** function to retrieve all player wallet items
 var wallets = PlaytoliaWallet.GetWallets();
 ```
 
-<Warning>
-  Make sure your player is authenticated before calling GetWallets or any other PlaytoliaWallet function. Wallet API requires authentication and will return empty lists or null values until the player is successfully logged in.
-</Warning>
 
 <Info>
   Once you authenticate your user, PlaytoliaWallet will automatically refresh and fetch the latest wallet balances. If you need to refresh the wallet data manually, simply use **PlaytoliaWallet.Refresh()** function.
