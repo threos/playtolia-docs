@@ -9,7 +9,7 @@ description: "Learn how to setup the backend of your in-game store within minute
 
 ### Store API
 
-Playtolia Store API allows you to list, query, and search store items. Store API supports different types of items such as `non-consumables`, `consumables`, and `subscriptions`. Store API also provides a simple function to start the purchase flow for any item in your store. Store API works with Play Store and App Store APIs in order to securely process payments, grant items to your players, and handle failures.
+Playtolia Store API allows you to list, query, and search store items. Store API supports different types of items such as `NonConsumable`, `Consumable`, and `Subscription`. Store API also provides a simple function to start the purchase flow for any item in your store. Store API works with Play Store and App Store APIs in order to securely process payments, grant items to your players, and handle failures.
 
 <Warning>
   Store data is only available after successful authentication. PlaytoliaStore functions will return empty lists or null values until the player is logged in.
@@ -76,9 +76,9 @@ Call the **SearchItems** function to search items by their name, description, or
 var searchResult = PlaytoliaStore.SearchItems("Gold");
 
 // Get items by type
-var consumables = PlaytoliaStore.GetItemsByType("consumable");
-var subscriptions = PlaytoliaStore.GetItemsByType("subscription");
-var nonConsumables = PlaytoliaStore.GetItemsByType("non-consumable");
+var consumables = PlaytoliaStore.GetItemsByType("Consumable");
+var subscriptions = PlaytoliaStore.GetItemsByType("NonConsumable");
+var nonConsumables = PlaytoliaStore.GetItemsByType("Subscription");
 ```
 
 ### Getting specific items
