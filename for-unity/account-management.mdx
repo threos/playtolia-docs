@@ -1,6 +1,6 @@
 ---
-description: "Use Sessions API to access user information such as username, email, and player ID."
 title: "Account Management"
+description: "Manage user profiles and sessions using PlaytoliaSession API"
 ---
 
 ### Requirements
@@ -9,7 +9,7 @@ title: "Account Management"
 
 ### Sessions API
 
-Playtolia Sessions API is the main access point for user-related information. Using Sessions API you can get user IDs, name, email, and locale. Just like other components, Sessions are managed with a Stateful object: PlaytoliaSession. PlaytoliaSession listens to changes in the auth state to automatically update user information.
+Playtolia Sessions API is the main access point for user-related information and profile management. Using Sessions API you can get user IDs, name, email, locale, and manage player profiles. Just like other components, Sessions are managed with a Stateful object: PlaytoliaSession. PlaytoliaSession listens to changes in the auth state to automatically update user information.
 
 If the player has not signed in or logged out, state will be `null`
 
@@ -33,12 +33,56 @@ string playerId = user.PlayerId;
 string username = user.Username;
 ```
 
+<Warning>
+  Always check if the user is null before accessing user properties. The Sessions API will return null if the player is not authenticated or if the session has expired.
+</Warning>
+
+<Info>
+  PlaytoliaSession automatically refreshes user data when authentication state changes. You can also manually refresh using **PlaytoliaSession.Refresh()** if needed.
+</Info>
+
+### Understanding User structure
+
+The User object contains comprehensive player information:
+
+- **Uid:** Unique user identifier across the platform
+- **PlayerId:** Game-specific player identifier
+- **Username:** Player's display name
+- **Email:** Player's email address
+- **Lang:** Player's language/locale preference
+- **Location:** Player's geographic location
+- **Timezone:** Player's timezone setting
+- **Avatar:** URL to player's profile image
+- **CreatedAt:** Account creation timestamp
+
+```c# UserProfileDisplay.cs
+public void DisplayUserProfile()
+{
+    User user = PlaytoliaSession.GetUser();
+    if (user == null)
+    {
+        Debug.Log("No user logged in");
+        return;
+    }
+
+    Debug.Log($"User ID: {user.Uid}");
+    Debug.Log($"Player ID: {user.PlayerId}");
+    Debug.Log($"Username: {user.Username}");
+    Debug.Log($"Email: {user.Email}");
+    Debug.Log($"Language: {user.Lang}");
+    Debug.Log($"Location: {user.Location}");
+    Debug.Log($"Timezone: {user.Timezone}");
+    Debug.Log($"Avatar URL: {user.Avatar}");
+    Debug.Log($"Account Created: {user.CreatedAt}");
+}
+```
+
 ### Listen to user state changes
 
 During the runtime, PlaytoliaSession state might change several times due to:
 
 - **Authentication updates:** login, log out, token refresh
-- **Updates to user:** Changing username, adding avatar, etc.
+- **Profile updates:** Changing username, email, or other profile data
 - **Manual refresh** via PlaytoliaSession.Refresh()
 
 In order to make sure your game logic and UI stays up-to-date you can add listeners to PlaytoliaSession, just like with any other stateful component.
@@ -46,18 +90,728 @@ In order to make sure your game logic and UI stays up-to-date you can add listen
 ```c# ProfileMenu.cs
 public void Start()
 {
-	PlaytoliaSession.AddListener(() => {
-		User user = PlaytoliaSession.GetUser();
-		if(user == null) return;
+    PlaytoliaSession.AddListener(() => {
+        User user = PlaytoliaSession.GetUser();
+        if(user == null)
+        {
+            HandleUserLoggedOut();
+            return;
+        }
 
-		username = user.Username; 
-	});
+        UpdateProfileUI(user);
+    });
+}
+
+void UpdateProfileUI(User user)
+{
+    usernameText.text = user.Username;
+    emailText.text = user.Email;
+    playerIdText.text = user.PlayerId;
+}
+
+void HandleUserLoggedOut()
+{
+    // Clear profile UI
+    usernameText.text = "Guest";
+    emailText.text = "";
+    playerIdText.text = "";
 }
 ```
 
-### Need to save custom user properties?
+### Creating a comprehensive profile manager
 
-Use the new Attributes API to save custom properties (such as level and flairs) to player profile and synchronize between devices.
+Here's a complete example of managing user profiles in your game:
+
+```c# PlayerProfileManager.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Networking;
+using System;
+using System.Collections;
+
+public class PlayerProfileManager : MonoBehaviour
+{
+    [Header("UI Components")]
+    [SerializeField] private Text usernameDisplay;
+    [SerializeField] private Text emailDisplay;
+    [SerializeField] private Text playerIdDisplay;
+    [SerializeField] private Text joinDateDisplay;
+    [SerializeField] private Text locationDisplay;
+    [SerializeField] private Text timezoneDisplay;
+    [SerializeField] private RawImage avatarImage;
+    [SerializeField] private GameObject profilePanel;
+    [SerializeField] private GameObject loginPrompt;
+    [SerializeField] private Button refreshButton;
+
+    void Start()
+    {
+        // Listen to session changes
+        PlaytoliaSession.AddListener(OnSessionChanged);
+
+        // Set up refresh button
+        refreshButton.onClick.AddListener(RefreshProfile);
+
+        // Initial state check
+        OnSessionChanged();
+    }
+
+    void OnSessionChanged()
+    {
+        User user = PlaytoliaSession.GetUser();
+        bool isLoggedIn = user != null;
+
+        // Show/hide appropriate panels
+        profilePanel.SetActive(isLoggedIn);
+        loginPrompt.SetActive(!isLoggedIn);
+
+        if (isLoggedIn)
+        {
+            DisplayUserProfile(user);
+        }
+    }
+
+    void DisplayUserProfile(User user)
+    {
+        // Update basic info
+        usernameDisplay.text = user.Username ?? "Unknown Player";
+        emailDisplay.text = user.Email ?? "No email";
+        playerIdDisplay.text = $"ID: {user.PlayerId}";
+
+        // Format and display additional info
+        locationDisplay.text = $"Location: {user.Location ?? "Unknown"}";
+        timezoneDisplay.text = $"Timezone: {user.Timezone ?? "Unknown"}";
+
+        // Parse and display creation date
+        if (!string.IsNullOrEmpty(user.CreatedAt))
+        {
+            if (DateTime.TryParse(user.CreatedAt, out DateTime createdDate))
+            {
+                joinDateDisplay.text = $"Joined: {createdDate:MMM dd, yyyy}";
+            }
+            else
+            {
+                joinDateDisplay.text = "Join date: Unknown";
+            }
+        }
+
+        // Load avatar if available
+        LoadUserAvatar(user);
+    }
+
+    void LoadUserAvatar(User user)
+    {
+        if (!string.IsNullOrEmpty(user.Avatar))
+        {
+            StartCoroutine(LoadAvatarCoroutine(user.Avatar));
+        }
+        else
+        {
+            // Set default avatar
+            avatarImage.texture = null;
+        }
+    }
+
+    IEnumerator LoadAvatarCoroutine(string avatarUrl)
+    {
+        using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(avatarUrl))
+        {
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                Texture2D texture = DownloadHandlerTexture.GetContent(request);
+                avatarImage.texture = texture;
+            }
+            else
+            {
+                Debug.LogWarning($"Failed to load avatar: {request.error}");
+            }
+        }
+    }
+
+    public void RefreshProfile()
+    {
+        PlaytoliaSession.Refresh();
+        Debug.Log("Refreshing user profile...");
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaSession.RemoveListener(OnSessionChanged);
+    }
+}
+```
+
+### Handling different user states
+
+```c# UserStateHandler.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using System;
+
+public class UserStateHandler : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaSession.AddListener(CheckUserState);
+    }
+
+    void CheckUserState()
+    {
+        User user = PlaytoliaSession.GetUser();
+
+        if (user == null)
+        {
+            HandleGuestUser();
+        }
+        else if (IsNewUser(user))
+        {
+            HandleNewUser(user);
+        }
+        else if (IsReturningUser(user))
+        {
+            HandleReturningUser(user);
+        }
+        else
+        {
+            HandleRegularUser(user);
+        }
+    }
+
+    void HandleGuestUser()
+    {
+        Debug.Log("Guest user detected");
+        // Show limited features, encourage registration
+        ShowGuestModeUI();
+    }
+
+    void HandleNewUser(User user)
+    {
+        Debug.Log($"Welcome new user: {user.Username}");
+        // Show onboarding, tutorial, welcome bonus
+        ShowWelcomeFlow(user);
+    }
+
+    void HandleReturningUser(User user)
+    {
+        Debug.Log($"Welcome back: {user.Username}");
+        // Show daily rewards, what's new, etc.
+        ShowReturningUserContent(user);
+    }
+
+    void HandleRegularUser(User user)
+    {
+        Debug.Log($"Regular user session: {user.Username}");
+        // Normal gameplay flow
+        ShowMainGameplay();
+    }
+
+    bool IsNewUser(User user)
+    {
+        if (string.IsNullOrEmpty(user.CreatedAt)) return false;
+
+        if (DateTime.TryParse(user.CreatedAt, out DateTime createdDate))
+        {
+            return (DateTime.UtcNow - createdDate).TotalDays <= 7;
+        }
+
+        return false;
+    }
+
+    bool IsReturningUser(User user)
+    {
+        // This would require additional tracking
+        // For now, assume non-new users who haven't played recently
+        return !IsNewUser(user);
+    }
+
+    void ShowGuestModeUI() { /* Implementation */ }
+    void ShowWelcomeFlow(User user) { /* Implementation */ }
+    void ShowReturningUserContent(User user) { /* Implementation */ }
+    void ShowMainGameplay() { /* Implementation */ }
+}
+```
+
+### Player identification and analytics
+
+Use user information for analytics and player tracking:
+
+```c# PlayerAnalytics.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using System;
+
+public class PlayerAnalytics : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaSession.AddListener(UpdateAnalytics);
+    }
+
+    void UpdateAnalytics()
+    {
+        User user = PlaytoliaSession.GetUser();
+
+        if (user != null)
+        {
+            // Track authenticated user
+            TrackAuthenticatedUser(user);
+        }
+        else
+        {
+            // Track anonymous session
+            TrackAnonymousUser();
+        }
+    }
+
+    void TrackAuthenticatedUser(User user)
+    {
+        // Send user data to analytics service
+        Debug.Log($"Tracking user: {user.PlayerId}");
+
+        // Calculate account age
+        double accountAge = 0;
+        if (!string.IsNullOrEmpty(user.CreatedAt) && DateTime.TryParse(user.CreatedAt, out DateTime createdDate))
+        {
+            accountAge = (DateTime.UtcNow - createdDate).TotalDays;
+        }
+
+        // Example analytics properties
+        var properties = new {
+            userId = user.PlayerId,
+            username = user.Username,
+            locale = user.Lang,
+            location = user.Location,
+            timezone = user.Timezone,
+            accountAge = accountAge,
+            hasAvatar = !string.IsNullOrEmpty(user.Avatar)
+        };
+
+        // Send to your analytics service
+        // Analytics.Identify(user.PlayerId, properties);
+        Debug.Log($"Analytics properties: {properties}");
+    }
+
+    void TrackAnonymousUser()
+    {
+        Debug.Log("Tracking anonymous user");
+        // Track anonymous session without personal data
+        // Analytics.Track("anonymous_session");
+    }
+}
+```
+
+### Profile validation and safety
+
+```c# ProfileValidator.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using System;
+using System.Text.RegularExpressions;
+
+public class ProfileValidator : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaSession.AddListener(ValidateProfile);
+    }
+
+    void ValidateProfile()
+    {
+        User user = PlaytoliaSession.GetUser();
+
+        if (user == null) return;
+
+        // Check for incomplete profiles
+        if (IsProfileIncomplete(user))
+        {
+            PromptProfileCompletion(user);
+        }
+
+        // Check for suspicious activity
+        if (IsSuspiciousAccount(user))
+        {
+            HandleSuspiciousAccount(user);
+        }
+
+        // Validate email format
+        if (!IsValidEmail(user.Email))
+        {
+            HandleInvalidEmail(user);
+        }
+    }
+
+    bool IsProfileIncomplete(User user)
+    {
+        return string.IsNullOrEmpty(user.Username) ||
+               string.IsNullOrEmpty(user.Email);
+    }
+
+    bool IsSuspiciousAccount(User user)
+    {
+        if (string.IsNullOrEmpty(user.CreatedAt)) return false;
+
+        // Check for very new accounts
+        if (DateTime.TryParse(user.CreatedAt, out DateTime createdDate))
+        {
+            var accountAge = DateTime.UtcNow - createdDate;
+            return accountAge.TotalHours < 1; // Less than 1 hour old
+        }
+
+        return false;
+    }
+
+    bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrEmpty(email)) return false;
+
+        // Basic email validation
+        var emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+        return Regex.IsMatch(email, emailPattern);
+    }
+
+    void PromptProfileCompletion(User user)
+    {
+        Debug.Log("Profile incomplete - prompting user to complete");
+        // Show profile completion dialog
+    }
+
+    void HandleSuspiciousAccount(User user)
+    {
+        Debug.Log("Suspicious account detected - implementing safety measures");
+        // Implement additional verification or restrictions
+    }
+
+    void HandleInvalidEmail(User user)
+    {
+        Debug.Log("Invalid email format detected");
+        // Prompt user to update email
+    }
+}
+```
+
+### Locale and internationalization
+
+Use user locale information for game localization:
+
+```c# LocalizationManager.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using System.Collections.Generic;
+
+public class LocalizationManager : MonoBehaviour
+{
+    [Header("Supported Languages")]
+    [SerializeField] private List<string> supportedLanguages = new List<string> { "en", "es", "fr", "de", "ja" };
+
+    void Start()
+    {
+        PlaytoliaSession.AddListener(UpdateLocalization);
+    }
+
+    void UpdateLocalization()
+    {
+        User user = PlaytoliaSession.GetUser();
+
+        string locale = user?.Lang ?? GetSystemLocale();
+        ApplyLocalization(locale);
+
+        // Also handle timezone for time-sensitive features
+        if (user != null && !string.IsNullOrEmpty(user.Timezone))
+        {
+            ApplyTimezoneSettings(user.Timezone);
+        }
+    }
+
+    string GetSystemLocale()
+    {
+        return Application.systemLanguage.ToString().ToLower().Substring(0, 2);
+    }
+
+    void ApplyLocalization(string locale)
+    {
+        // Normalize locale
+        string normalizedLocale = locale.ToLower().Substring(0, Mathf.Min(2, locale.Length));
+
+        // Check if we support this language
+        if (!supportedLanguages.Contains(normalizedLocale))
+        {
+            normalizedLocale = "en"; // Fallback to English
+        }
+
+        Debug.Log($"Applying localization for: {normalizedLocale}");
+
+        // Apply language settings
+        switch (normalizedLocale)
+        {
+            case "en":
+                LoadEnglishLocalization();
+                break;
+            case "es":
+                LoadSpanishLocalization();
+                break;
+            case "fr":
+                LoadFrenchLocalization();
+                break;
+            case "de":
+                LoadGermanLocalization();
+                break;
+            case "ja":
+                LoadJapaneseLocalization();
+                break;
+            default:
+                LoadEnglishLocalization(); // Fallback
+                break;
+        }
+    }
+
+    void ApplyTimezoneSettings(string timezone)
+    {
+        Debug.Log($"Applying timezone settings: {timezone}");
+
+        // Use timezone for:
+        // - Daily reward reset times
+        // - Event scheduling
+        // - Leaderboard reset times
+        // - Time-based notifications
+    }
+
+    void LoadEnglishLocalization() { Debug.Log("Loading English strings"); }
+    void LoadSpanishLocalization() { Debug.Log("Loading Spanish strings"); }
+    void LoadFrenchLocalization() { Debug.Log("Loading French strings"); }
+    void LoadGermanLocalization() { Debug.Log("Loading German strings"); }
+    void LoadJapaneseLocalization() { Debug.Log("Loading Japanese strings"); }
+}
+```
+
+### Player engagement tracking
+
+Track player engagement patterns using profile data:
+
+```c# EngagementTracker.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using System;
+
+public class EngagementTracker : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaSession.AddListener(TrackEngagement);
+    }
+
+    void TrackEngagement()
+    {
+        User user = PlaytoliaSession.GetUser();
+
+        if (user != null)
+        {
+            AnalyzePlayerSegment(user);
+            TrackSessionStart(user);
+        }
+    }
+
+    void AnalyzePlayerSegment(User user)
+    {
+        var segment = DeterminePlayerSegment(user);
+        Debug.Log($"Player segment: {segment}");
+
+        // Customize experience based on segment
+        ApplySegmentCustomization(segment, user);
+    }
+
+    string DeterminePlayerSegment(User user)
+    {
+        if (string.IsNullOrEmpty(user.CreatedAt))
+            return "unknown";
+
+        if (DateTime.TryParse(user.CreatedAt, out DateTime createdDate))
+        {
+            var accountAge = DateTime.UtcNow - createdDate;
+
+            if (accountAge.TotalDays <= 1)
+                return "new_player";
+            else if (accountAge.TotalDays <= 7)
+                return "novice_player";
+            else if (accountAge.TotalDays <= 30)
+                return "regular_player";
+            else
+                return "veteran_player";
+        }
+
+        return "unknown";
+    }
+
+    void ApplySegmentCustomization(string segment, User user)
+    {
+        switch (segment)
+        {
+            case "new_player":
+                // Show tutorial, extra guidance
+                EnableNewPlayerFeatures();
+                break;
+            case "novice_player":
+                // Show tips, unlock basic features gradually
+                EnableNoviceFeatures();
+                break;
+            case "regular_player":
+                // Normal gameplay experience
+                EnableRegularFeatures();
+                break;
+            case "veteran_player":
+                // Advanced features, loyalty rewards
+                EnableVeteranFeatures();
+                break;
+        }
+    }
+
+    void TrackSessionStart(User user)
+    {
+        var sessionData = new {
+            playerId = user.PlayerId,
+            username = user.Username,
+            locale = user.Lang,
+            location = user.Location,
+            sessionStartTime = DateTime.UtcNow,
+            platform = Application.platform.ToString()
+        };
+
+        Debug.Log($"Session started for {user.Username}");
+        // Send to analytics
+    }
+
+    void EnableNewPlayerFeatures() { Debug.Log("Enabling new player features"); }
+    void EnableNoviceFeatures() { Debug.Log("Enabling novice features"); }
+    void EnableRegularFeatures() { Debug.Log("Enabling regular features"); }
+    void EnableVeteranFeatures() { Debug.Log("Enabling veteran features"); }
+}
+```
+
+### Avatar and profile customization
+
+Handle player avatar loading and profile customization:
+
+```c# ProfileCustomization.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Networking;
+using System.Collections;
+using System.Collections.Generic;
+
+public class ProfileCustomization : MonoBehaviour
+{
+    [Header("Avatar Settings")]
+    [SerializeField] private RawImage avatarDisplay;
+    [SerializeField] private Texture2D defaultAvatar;
+    [SerializeField] private Button changeAvatarButton;
+
+    [Header("Profile Editing")]
+    [SerializeField] private InputField usernameInput;
+    [SerializeField] private Button saveProfileButton;
+
+    private Dictionary<string, Texture2D> avatarCache = new Dictionary<string, Texture2D>();
+
+    void Start()
+    {
+        PlaytoliaSession.AddListener(OnUserChanged);
+
+        changeAvatarButton.onClick.AddListener(ChangeAvatar);
+        saveProfileButton.onClick.AddListener(SaveProfile);
+    }
+
+    void OnUserChanged()
+    {
+        User user = PlaytoliaSession.GetUser();
+
+        if (user != null)
+        {
+            LoadUserAvatar(user.Avatar);
+            usernameInput.text = user.Username ?? "";
+        }
+        else
+        {
+            avatarDisplay.texture = defaultAvatar;
+            usernameInput.text = "";
+        }
+    }
+
+    void LoadUserAvatar(string avatarUrl)
+    {
+        if (string.IsNullOrEmpty(avatarUrl))
+        {
+            avatarDisplay.texture = defaultAvatar;
+            return;
+        }
+
+        // Check cache first
+        if (avatarCache.ContainsKey(avatarUrl))
+        {
+            avatarDisplay.texture = avatarCache[avatarUrl];
+            return;
+        }
+
+        StartCoroutine(LoadAvatarFromUrl(avatarUrl));
+    }
+
+    IEnumerator LoadAvatarFromUrl(string url)
+    {
+        using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
+        {
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                Texture2D texture = DownloadHandlerTexture.GetContent(request);
+                avatarDisplay.texture = texture;
+
+                // Cache the texture
+                avatarCache[url] = texture;
+            }
+            else
+            {
+                Debug.LogWarning($"Failed to load avatar from {url}: {request.error}");
+                avatarDisplay.texture = defaultAvatar;
+            }
+        }
+    }
+
+    void ChangeAvatar()
+    {
+        // This would typically open a file picker or avatar selection UI
+        Debug.Log("Avatar change requested");
+        // Implementation depends on your avatar system
+    }
+
+    void SaveProfile()
+    {
+        string newUsername = usernameInput.text.Trim();
+
+        if (string.IsNullOrEmpty(newUsername))
+        {
+            Debug.LogWarning("Username cannot be empty");
+            return;
+        }
+
+        if (newUsername.Length < 3)
+        {
+            Debug.LogWarning("Username must be at least 3 characters");
+            return;
+        }
+
+        // Here you would typically make an API call to update the profile
+        Debug.Log($"Saving profile with username: {newUsername}");
+
+        // For now, we just refresh the session
+        PlaytoliaSession.Refresh();
+    }
+}
+```
+
+### Need to save custom player data?
+
+For storing custom game-specific data like player progress, preferences, and achievements, you'll want to use the Attributes API.
 
 <Card title="Attributes" icon="list-tree">
   Save and read custom data such as progress, preferences, and roles. All backed up to the cloud and synchronised between your players devices.

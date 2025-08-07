@@ -1,11 +1,15 @@
 ---
 title: "Authentication"
-description: "Learn how to authenticate your players"
+description: "Learn how to authenticate your players using PlaytoliaAuth"
 ---
 
 ### Requirements
 
 - Playtolia SDK (with Authentication enabled)
+
+### Authentication API
+
+Playtolia Authentication API provides secure login and session management for your players. The API supports multiple authentication strategies including automatic login prompts, manual authentication flows, and session state management. Use PlaytoliaAuth to handle user authentication, manage login dialogs, and listen to authentication state changes.
 
 ### Authentication strategies
 
@@ -21,7 +25,7 @@ Playtolia will display a login dialog as soon as the PlaytoliaGameObject you've 
 
 #### If you have disabled "Authentication Required"
 
-You might want to display a trailer, display a demo level, or simply ask for login as after your player has progressed in the game. In that case you must disable the "Authentication Required" checkbox from your Playtolia Settings (in the [project settings](https://docs.unity3d.com/6000.1/Documentation/Manual/comp-ManagerGroup.html)) and prompt login manually.
+You might want to display a trailer, display a demo level, or simply ask for login after your player has progressed in the game. In that case you must disable the "Authentication Required" checkbox from your Playtolia Settings (in the [project settings](https://docs.unity3d.com/6000.1/Documentation/Manual/comp-ManagerGroup.html)) and prompt login manually.
 
 PlaytoliaAuth.cs is a high-level wrapper to interact with auth related components. You can use PlaytoliaAuth.cs to prompt login, retrieve user session or listen to authentication state changes.
 
@@ -38,12 +42,12 @@ Call the **PromptLogin** function inside another function. Pass a boolean value 
 ```c# LoginButton.cs
 public void PromptLoginNonDismissable()
 {
-	PlaytoliaAuth.PromptLogin(false);
+    PlaytoliaAuth.PromptLogin(false);
 }
 
 public void PromptLoginDismissable()
 {
-	PlaytoliaAuth.PromptLogin(); // or PlaytoliaAuth.PromptLogin(true);
+    PlaytoliaAuth.PromptLogin(); // or PlaytoliaAuth.PromptLogin(true);
 }
 ```
 
@@ -58,36 +62,452 @@ AuthState is a simple object that holds access token, refresh token, and expirat
 ```c# AuthHelper.cs
 public bool IsUserLoggedIn()
 {
-	return PlaytoliaAuth.GetState() != null;
+    return PlaytoliaAuth.GetState() != null;
 }
 
 public string GetAccessToken()
 {
-	return PlaytoliaAuth.GetState().AccessToken;
+    var authState = PlaytoliaAuth.GetState();
+    return authState?.AccessToken;
 }
 ```
 
-### Listening to changes
+### Understanding AuthState structure
 
-AuthState is a simple object that holds access token, refresh token, and expiration info. In order to get the AuthState from your C# code, you can use **GetState** function.
+The AuthState object contains essential authentication information:
+
+- **AccessToken:** JWT token for API authentication
+- **RefreshToken:** Token used to refresh the access token
+- **Expiration:** Unix timestamp when the access token expires
+- **RefreshTokenExpiration:** Unix timestamp when the refresh token expires
+
+```c# AuthStateInfo.cs
+public void DisplayAuthInfo()
+{
+    var authState = PlaytoliaAuth.GetState();
+
+    if (authState != null)
+    {
+        Debug.Log($"Access Token: {authState.AccessToken}");
+        Debug.Log($"Refresh Token: {authState.RefreshToken}");
+        Debug.Log($"Token Expires: {DateTimeOffset.FromUnixTimeSeconds(authState.Expiration)}");
+        Debug.Log($"Refresh Expires: {DateTimeOffset.FromUnixTimeSeconds(authState.RefreshTokenExpiration)}");
+
+        // Check if token is close to expiring
+        var currentTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var timeUntilExpiry = authState.Expiration - currentTime;
+
+        if (timeUntilExpiry < 300) // Less than 5 minutes
+        {
+            Debug.Log("Token expires soon - will be refreshed automatically");
+        }
+    }
+    else
+    {
+        Debug.Log("User is not authenticated");
+    }
+}
+```
+
+### Listening to authentication changes
+
+Authentication state can change during runtime due to:
+
+- **Login:** Player successfully authenticates
+- **Token refresh:** Automatic token renewal in the background
+- **Logout:** Player logs out or session expires
+- **Network changes:** Connection issues affecting authentication
+
+To keep your game logic up-to-date, add listeners to PlaytoliaAuth:
 
 ```c# UIMenu.cs
 public void Start()
 {
-	PlaytoliaAuth.AddListener(() => {
-		var state = PlaytoliaAuth.GetState();
-		var isLoggedIn = state != null;
-		// Set LoginMenu gameobject active, if the user is not signed in.
-		LoginMenu.SetActive(!isLoggedIn); 
-	});
+    PlaytoliaAuth.AddListener(() => {
+        var state = PlaytoliaAuth.GetState();
+        var isLoggedIn = state != null;
+
+        // Set LoginMenu gameobject active, if the user is not signed in.
+        LoginMenu.SetActive(!isLoggedIn);
+
+        // Enable/disable game features based on auth state
+        if (isLoggedIn)
+        {
+            EnableOnlineFeatures();
+        }
+        else
+        {
+            DisableOnlineFeatures();
+        }
+    });
+}
+
+void EnableOnlineFeatures()
+{
+    // Enable leaderboards, cloud saves, etc.
+    Debug.Log("Online features enabled");
+}
+
+void DisableOnlineFeatures()
+{
+    // Switch to offline mode
+    Debug.Log("Switching to offline mode");
 }
 ```
 
 Listening to changes in the auth state is very useful since player session may expire. The listener functions you've added will be called after any auth state change (including logins and token refresh). This is specifically useful to know when your player has logged in, to update the UI.
 
-### Need more information about the player?
+### Managing logout
 
-Use PlaytoliaSession to get current user and see more information including email, username, player ID, and more.
+You can programmatically log out users and optionally prompt for re-authentication:
+
+```c# LogoutManager.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+
+public class LogoutManager : MonoBehaviour
+{
+    public void LogoutAndPromptLogin()
+    {
+        // Logout and immediately show login prompt
+        PlaytoliaAuth.Logout(promptLogin: true);
+    }
+
+    public void LogoutSilently()
+    {
+        // Logout without showing login prompt
+        PlaytoliaAuth.Logout(promptLogin: false);
+    }
+
+    public void LogoutWithConfirmation()
+    {
+        // Show confirmation dialog before logout
+        if (ConfirmLogout())
+        {
+            PlaytoliaAuth.Logout(promptLogin: true);
+        }
+    }
+
+    bool ConfirmLogout()
+    {
+        // Your confirmation logic here
+        return true;
+    }
+}
+```
+
+### Canceling login flows
+
+If you need to cancel an ongoing login process:
+
+```c# LoginController.cs
+public void CancelLogin()
+{
+    PlaytoliaAuth.CancelLogin();
+
+    // Handle canceled login state
+    HandleLoginCanceled();
+}
+
+void HandleLoginCanceled()
+{
+    Debug.Log("Login was canceled by user");
+    // Show guest mode options or retry button
+}
+```
+
+### Complete authentication flow example
+
+Here's a comprehensive example showing how to handle the full authentication flow:
+
+```c# AuthenticationManager.cs
+using PlaytoliaSDK.Runtime;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class AuthenticationManager : MonoBehaviour
+{
+    [SerializeField] private GameObject loginPanel;
+    [SerializeField] private GameObject gamePanel;
+    [SerializeField] private Button loginButton;
+    [SerializeField] private Button guestButton;
+    [SerializeField] private Button logoutButton;
+    [SerializeField] private Text statusText;
+
+    void Start()
+    {
+        // Set up button listeners
+        loginButton.onClick.AddListener(() => PlaytoliaAuth.PromptLogin(true));
+        guestButton.onClick.AddListener(PlayAsGuest);
+        logoutButton.onClick.AddListener(() => PlaytoliaAuth.Logout(true));
+
+        // Listen to auth state changes
+        PlaytoliaAuth.AddListener(OnAuthStateChanged);
+
+        // Initial state check
+        OnAuthStateChanged();
+    }
+
+    void OnAuthStateChanged()
+    {
+        var authState = PlaytoliaAuth.GetState();
+        bool isAuthenticated = authState != null;
+
+        // Update UI based on authentication state
+        loginPanel.SetActive(!isAuthenticated);
+        gamePanel.SetActive(isAuthenticated);
+
+        if (isAuthenticated)
+        {
+            statusText.text = "Logged in successfully!";
+            LoadPlayerData();
+        }
+        else
+        {
+            statusText.text = "Please log in to continue";
+            ClearPlayerData();
+        }
+    }
+
+    void PlayAsGuest()
+    {
+        // Handle guest mode
+        statusText.text = "Playing as guest";
+        // Enable limited features for guest users
+    }
+
+    void LoadPlayerData()
+    {
+        // Load player profile, wallet, entitlements, etc.
+        Debug.Log("Loading player data...");
+    }
+
+    void ClearPlayerData()
+    {
+        // Clear cached player data
+        Debug.Log("Clearing player data...");
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaAuth.RemoveListener(OnAuthStateChanged);
+    }
+}
+```
+
+### Authentication providers
+
+Playtolia supports multiple authentication providers that players can choose from:
+
+**Google OAuth 2.0:**
+- Seamless integration with Google accounts
+- Cross-platform support (Android & iOS)
+- Automatic profile information retrieval
+
+**Facebook Login:**
+- Native Facebook SDK integration
+- Access to basic profile information
+- Friends list integration capabilities
+
+**Apple Sign In:**
+- Required for iOS apps (App Store guidelines)
+- Privacy-focused authentication
+- Hide My Email support
+
+**Discord OAuth:**
+- Gaming-focused authentication
+- Discord profile integration
+- Community features support
+
+**Email/Password:**
+- Traditional authentication method
+- Custom registration flows
+- Password reset functionality
+
+**Anonymous/Guest Mode:**
+- Temporary authentication
+- Local data storage
+- Easy upgrade to full account
+
+```c# AuthProviderInfo.cs
+public void CheckAuthenticationProvider()
+{
+    var authState = PlaytoliaAuth.GetState();
+
+    if (authState != null)
+    {
+        // You can check the token claims to determine the provider
+        // This would require JWT token parsing
+        Debug.Log("User is authenticated via some provider");
+
+        // Get additional user info from PlaytoliaSession
+        var user = PlaytoliaSession.GetUser();
+        if (user != null)
+        {
+            Debug.Log($"User email: {user.Email}");
+            Debug.Log($"Username: {user.Username}");
+        }
+    }
+}
+```
+
+### Best practices
+
+**Handle network issues gracefully:**
+```c# NetworkAwareAuth.cs
+public class NetworkAwareAuth : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaAuth.AddListener(CheckAuthStatus);
+    }
+
+    void CheckAuthStatus()
+    {
+        var authState = PlaytoliaAuth.GetState();
+
+        if (authState == null && Application.internetReachability == NetworkReachability.NotReachable)
+        {
+            ShowOfflineModeDialog();
+        }
+    }
+
+    void ShowOfflineModeDialog()
+    {
+        Debug.Log("No internet connection - enabling offline mode");
+        // Show offline mode UI
+    }
+}
+```
+
+**Implement token expiry monitoring:**
+```c# TokenManager.cs
+public class TokenManager : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaAuth.AddListener(MonitorTokenExpiry);
+    }
+
+    void MonitorTokenExpiry()
+    {
+        var authState = PlaytoliaAuth.GetState();
+        if (authState != null)
+        {
+            var currentTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var timeUntilExpiry = authState.Expiration - currentTime;
+
+            if (timeUntilExpiry < 120) // Less than 2 minutes
+            {
+                Debug.Log("Token will expire soon - SDK will refresh automatically");
+                ShowTokenRefreshIndicator();
+            }
+        }
+    }
+
+    void ShowTokenRefreshIndicator()
+    {
+        // Show subtle UI indicator that authentication is being refreshed
+    }
+}
+```
+
+**Secure token handling:**
+```c# SecureTokenHandler.cs
+public class SecureTokenHandler : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaAuth.AddListener(HandleTokenSecurity);
+    }
+
+    void HandleTokenSecurity()
+    {
+        var authState = PlaytoliaAuth.GetState();
+
+        if (authState != null)
+        {
+            // Never log tokens in production
+            #if UNITY_EDITOR
+            Debug.Log("Token received (development mode)");
+            #endif
+
+            // Validate token format
+            if (IsValidTokenFormat(authState.AccessToken))
+            {
+                ProceedWithAuthenticatedFlow();
+            }
+            else
+            {
+                HandleInvalidToken();
+            }
+        }
+    }
+
+    bool IsValidTokenFormat(string token)
+    {
+        // Basic JWT format validation
+        return !string.IsNullOrEmpty(token) && token.Split('.').Length == 3;
+    }
+
+    void ProceedWithAuthenticatedFlow()
+    {
+        Debug.Log("Valid authentication - proceeding");
+    }
+
+    void HandleInvalidToken()
+    {
+        Debug.LogError("Invalid token received - requesting re-authentication");
+        PlaytoliaAuth.PromptLogin();
+    }
+}
+```
+
+### Authentication analytics
+
+Track authentication events for better user experience insights:
+
+```c# AuthAnalytics.cs
+public class AuthAnalytics : MonoBehaviour
+{
+    void Start()
+    {
+        PlaytoliaAuth.AddListener(TrackAuthEvents);
+    }
+
+    void TrackAuthEvents()
+    {
+        var authState = PlaytoliaAuth.GetState();
+
+        if (authState != null)
+        {
+            // Track successful authentication
+            TrackEvent("auth_success", new {
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                session_start = true
+            });
+        }
+        else
+        {
+            // Track logout or session end
+            TrackEvent("auth_logout", new {
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                session_end = true
+            });
+        }
+    }
+
+    void TrackEvent(string eventName, object parameters)
+    {
+        // Send to your analytics service
+        Debug.Log($"Analytics Event: {eventName}");
+    }
+}
+```
+
+### Need to access user information?
+
+Use the Session API to get detailed user information including username, email, and player ID.
 
 <Card title="Account Management" icon="circle-user" href="/for-unity/account-management">
   Create and manage in-game profiles. Use Sessions API to get or add avatar, name, and custom properties for your players.
