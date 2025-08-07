@@ -225,28 +225,6 @@ public void Start()
 }
 ```
 
-### Common use cases
-
-**Subscription Management:**
-
-```c# SubscriptionChecker.cs
-public bool HasActiveSubscription(string subscriptionGrantId)
-{
-    var subscription = PlaytoliaEntitlements.GetEntitlementByGrantId(subscriptionGrantId);
-    return subscription != null && !subscription.IsExpired;
-}
-```
-
-**Content Unlocking:**
-
-```c# ContentUnlocker.cs
-public bool CanAccessContent(string contentGrantId)
-{
-    var entitlements = PlaytoliaEntitlements.GetEntitlementsByGrantId(contentGrantId);
-    return entitlements.Any(e => !e.IsExpired);
-}
-```
-
 ### Need to implement purchases?
 
 Use the Store API to handle purchases that automatically grant entitlements to your players.
