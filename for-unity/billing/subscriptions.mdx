@@ -1,0 +1,543 @@
+---
+title: "Subscriptions"
+description: "Manage recurring subscriptions and premium memberships using PlaytoliaSubscriptions"
+---
+
+### Requirements
+
+- Playtolia SDK (with Authentication and Billing enabled)
+
+### Subscriptions API
+
+Playtolia Subscriptions API allows you to manage recurring subscriptions, premium memberships, and time-based services. The API handles subscription lifecycle events, renewal tracking, and provides real-time subscription status updates. Use PlaytoliaSubscriptions to check subscription validity, monitor renewal status, and manage premium features based on subscription state.
+
+<Warning>
+  Subscription data is only available after successful authentication. PlaytoliaSubscriptions functions will return empty lists or null values until the player is logged in.
+</Warning>
+
+### Getting player subscriptions
+
+Import the PlaytoliaSDK.Runtime to your script by adding the using directive
+
+```c# SubscriptionsController.cs
+using PlaytoliaSDK.Runtime;
+```
+
+Call the **GetSubscriptions** function to retrieve all player subscriptions
+
+```c# SubscriptionsController.cs
+// Get all player subscriptions
+var subscriptions = PlaytoliaSubscriptions.GetSubscriptions();
+```
+
+<Info>
+  Subscriptions are automatically refreshed when players make purchases or when subscription status changes. If you need to refresh subscriptions manually, use **PlaytoliaSubscriptions.Refresh()** function.
+</Info>
+
+### Getting specific subscriptions
+
+You can retrieve specific subscriptions using different identifiers
+
+```c# SubscriptionsController.cs
+// Get subscription by ID
+var subscription = PlaytoliaSubscriptions.GetSubscriptionById("premium_monthly");
+
+// Get subscriptions by store item ID
+var subscriptionsByItem = PlaytoliaSubscriptions.GetSubscriptionsByItemId("premium_subscription");
+
+// Get active subscriptions only
+var activeSubscriptions = PlaytoliaSubscriptions.GetActiveSubscriptions();
+```
+
+### Understanding PlayerSubscription structure
+
+Each PlayerSubscription contains comprehensive information about the subscription:
+
+- **Id:** Unique identifier for the subscription
+- **AutoRenew:** Whether the subscription will automatically renew
+- **CreatedAt:** When the subscription was created
+- **ExpiresAt:** When the subscription expires
+- **StartsAt:** When the subscription becomes active
+- **Status:** Current subscription status (subscribed, active, expired, cancelled)
+- **StoreItem:** The store item associated with this subscription
+- **IsValid:** Property indicating if subscription is in "subscribed" status
+- **IsActive:** Property indicating if subscription is "active"
+- **IsExpired:** Property indicating if subscription has expired
+- **IsCancelled:** Property indicating if subscription was cancelled
+- **HasBegun:** Property indicating if subscription start time has passed
+
+```c# SubscriptionInfo.cs
+public void DisplaySubscriptionInfo(PlayerSubscription subscription)
+{
+    Debug.Log($"Subscription ID: {subscription.Id}");
+    Debug.Log($"Status: {subscription.Status}");
+    Debug.Log($"Auto Renew: {subscription.AutoRenew}");
+    Debug.Log($"Created: {subscription.CreatedAt}");
+    Debug.Log($"Starts: {subscription.StartsAt}");
+    Debug.Log($"Expires: {subscription.ExpiresAt}");
+    Debug.Log($"Has Begun: {subscription.HasBegun}");
+    Debug.Log($"Is Valid: {subscription.IsValid}");
+    Debug.Log($"Is Active: {subscription.IsActive}");
+    Debug.Log($"Store Item: {subscription.StoreItem.Name}");
+    Debug.Log($"Type: {subscription.Type}");
+}
+```
+
+### Checking for premium subscriptions
+
+Here's a practical example of how to manage premium features based on subscription status:
+
+```c# PremiumSubscriptionManager.cs
+using PlaytoliaSDK.Runtime;
+using System.Linq;
+using UnityEngine;
+
+public class PremiumSubscriptionManager : MonoBehaviour
+{
+    void Start()
+    {
+        // Listen to subscription changes
+        PlaytoliaSubscriptions.AddListener(CheckSubscriptionStatus);
+
+        // Initial check
+        CheckSubscriptionStatus();
+    }
+
+    void CheckSubscriptionStatus()
+    {
+        var activeSubscriptions = PlaytoliaSubscriptions.GetActiveSubscriptions();
+        var hasPremium = activeSubscriptions.Any(s => s.StoreItem.Id == "premium_monthly" ||
+                                                     s.StoreItem.Id == "premium_yearly");
+
+        if (hasPremium)
+        {
+            EnablePremiumFeatures();
+        }
+        else
+        {
+            DisablePremiumFeatures();
+        }
+
+        // Check for expiring subscriptions
+        CheckExpiringSubscriptions(activeSubscriptions);
+    }
+
+    void CheckExpiringSubscriptions(List<PlayerSubscription> subscriptions)
+    {
+        var expiringWithin7Days = subscriptions.Where(s =>
+            (s.ExpiresAt - DateTime.UtcNow).TotalDays <= 7 && s.AutoRenew == false);
+
+        foreach (var expiring in expiringWithin7Days)
+        {
+            ShowRenewalReminder(expiring);
+        }
+    }
+
+    void EnablePremiumFeatures()
+    {
+        Debug.Log("Premium features enabled!");
+        // Enable premium UI, unlock content, remove ads, etc.
+    }
+
+    void DisablePremiumFeatures()
+    {
+        Debug.Log("Premium features disabled");
+        // Show subscription upgrade prompts, enable ads, etc.
+    }
+
+    void ShowRenewalReminder(PlayerSubscription subscription)
+    {
+        Debug.Log($"Subscription {subscription.StoreItem.Name} expires in {(subscription.ExpiresAt - DateTime.UtcNow).TotalDays:F0} days");
+        // Show renewal dialog
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaSubscriptions.RemoveListener(CheckSubscriptionStatus);
+    }
+}
+```
+
+### Managing different subscription tiers
+
+Handle multiple subscription tiers and their respective benefits:
+
+```c# SubscriptionTierManager.cs
+using PlaytoliaSDK.Runtime;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+public class SubscriptionTierManager : MonoBehaviour
+{
+    [System.Serializable]
+    public class SubscriptionTier
+    {
+        public string itemId;
+        public string tierName;
+        public int priority; // Higher number = higher tier
+        public List<string> features;
+    }
+
+    [SerializeField] private List<SubscriptionTier> subscriptionTiers;
+
+    void Start()
+    {
+        PlaytoliaSubscriptions.AddListener(UpdateSubscriptionTier);
+        UpdateSubscriptionTier();
+    }
+
+    void UpdateSubscriptionTier()
+    {
+        var activeSubscriptions = PlaytoliaSubscriptions.GetActiveSubscriptions();
+        var currentTier = DetermineHighestTier(activeSubscriptions);
+
+        if (currentTier != null)
+        {
+            ApplyTierBenefits(currentTier);
+        }
+        else
+        {
+            ApplyFreeTierBenefits();
+        }
+    }
+
+    SubscriptionTier DetermineHighestTier(List<PlayerSubscription> subscriptions)
+    {
+        SubscriptionTier highestTier = null;
+        int highestPriority = -1;
+
+        foreach (var subscription in subscriptions)
+        {
+            var tier = subscriptionTiers.FirstOrDefault(t => t.itemId == subscription.StoreItem.Id);
+            if (tier != null && tier.priority > highestPriority)
+            {
+                highestTier = tier;
+                highestPriority = tier.priority;
+            }
+        }
+
+        return highestTier;
+    }
+
+    void ApplyTierBenefits(SubscriptionTier tier)
+    {
+        Debug.Log($"Applying {tier.tierName} benefits:");
+
+        foreach (var feature in tier.features)
+        {
+            EnableFeature(feature);
+            Debug.Log($"- {feature} enabled");
+        }
+    }
+
+    void ApplyFreeTierBenefits()
+    {
+        Debug.Log("Applying free tier limitations");
+        DisableAllPremiumFeatures();
+    }
+
+    void EnableFeature(string feature)
+    {
+        // Enable specific features based on string identifier
+        switch (feature.ToLower())
+        {
+            case "unlimited_lives":
+                EnableUnlimitedLives();
+                break;
+            case "ad_free":
+                DisableAds();
+                break;
+            case "premium_content":
+                UnlockPremiumContent();
+                break;
+            case "priority_support":
+                EnablePrioritySupport();
+                break;
+        }
+    }
+
+    void EnableUnlimitedLives() { /* Implementation */ }
+    void DisableAds() { /* Implementation */ }
+    void UnlockPremiumContent() { /* Implementation */ }
+    void EnablePrioritySupport() { /* Implementation */ }
+    void DisableAllPremiumFeatures() { /* Implementation */ }
+
+    void OnDestroy()
+    {
+        PlaytoliaSubscriptions.RemoveListener(UpdateSubscriptionTier);
+    }
+}
+```
+
+### Handling subscription lifecycle events
+
+Monitor subscription status changes and handle different lifecycle events:
+
+```c# SubscriptionLifecycleHandler.cs
+using PlaytoliaSDK.Runtime;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+public class SubscriptionLifecycleHandler : MonoBehaviour
+{
+    private Dictionary<string, PlayerSubscription> previousSubscriptions = new Dictionary<string, PlayerSubscription>();
+
+    void Start()
+    {
+        PlaytoliaSubscriptions.AddListener(OnSubscriptionsChanged);
+        OnSubscriptionsChanged(); // Initial load
+    }
+
+    void OnSubscriptionsChanged()
+    {
+        var currentSubscriptions = PlaytoliaSubscriptions.GetSubscriptions();
+        var currentDict = currentSubscriptions.ToDictionary(s => s.Id, s => s);
+
+        // Check for new subscriptions
+        foreach (var current in currentDict)
+        {
+            if (!previousSubscriptions.ContainsKey(current.Key))
+            {
+                OnSubscriptionAdded(current.Value);
+            }
+            else if (HasSubscriptionStatusChanged(previousSubscriptions[current.Key], current.Value))
+            {
+                OnSubscriptionStatusChanged(previousSubscriptions[current.Key], current.Value);
+            }
+        }
+
+        // Check for removed/expired subscriptions
+        foreach (var previous in previousSubscriptions)
+        {
+            if (!currentDict.ContainsKey(previous.Key))
+            {
+                OnSubscriptionRemoved(previous.Value);
+            }
+        }
+
+        previousSubscriptions = currentDict;
+    }
+
+    bool HasSubscriptionStatusChanged(PlayerSubscription old, PlayerSubscription current)
+    {
+        return old.Status != current.Status ||
+               old.AutoRenew != current.AutoRenew ||
+               old.ExpiresAt != current.ExpiresAt;
+    }
+
+    void OnSubscriptionAdded(PlayerSubscription subscription)
+    {
+        Debug.Log($"New subscription added: {subscription.StoreItem.Name}");
+        ShowWelcomeMessage(subscription);
+
+        // Analytics tracking
+        TrackSubscriptionEvent("subscription_started", subscription);
+    }
+
+    void OnSubscriptionStatusChanged(PlayerSubscription oldSub, PlayerSubscription newSub)
+    {
+        Debug.Log($"Subscription status changed from {oldSub.Status} to {newSub.Status}");
+
+        switch (newSub.Status.ToLower())
+        {
+            case "active":
+                HandleSubscriptionActivated(newSub);
+                break;
+            case "expired":
+                HandleSubscriptionExpired(newSub);
+                break;
+            case "cancelled":
+                HandleSubscriptionCancelled(newSub);
+                break;
+        }
+    }
+
+    void OnSubscriptionRemoved(PlayerSubscription subscription)
+    {
+        Debug.Log($"Subscription removed: {subscription.StoreItem.Name}");
+        HandleSubscriptionEnded(subscription);
+    }
+
+    void HandleSubscriptionActivated(PlayerSubscription subscription)
+    {
+        ShowNotification($"Welcome back! Your {subscription.StoreItem.Name} is now active.");
+        TrackSubscriptionEvent("subscription_activated", subscription);
+    }
+
+    void HandleSubscriptionExpired(PlayerSubscription subscription)
+    {
+        ShowNotification($"Your {subscription.StoreItem.Name} has expired. Renew to continue enjoying premium benefits!");
+        TrackSubscriptionEvent("subscription_expired", subscription);
+
+        // Optionally show renewal offer
+        ShowRenewalOffer(subscription);
+    }
+
+    void HandleSubscriptionCancelled(PlayerSubscription subscription)
+    {
+        ShowNotification($"Your {subscription.StoreItem.Name} has been cancelled. You can still use premium features until {subscription.ExpiresAt:MMM dd}.");
+        TrackSubscriptionEvent("subscription_cancelled", subscription);
+
+        // Show retention offer
+        ShowRetentionOffer(subscription);
+    }
+
+    void HandleSubscriptionEnded(PlayerSubscription subscription)
+    {
+        ShowNotification("Premium features are no longer available. Subscribe again to restore access!");
+        TrackSubscriptionEvent("subscription_ended", subscription);
+    }
+
+    void ShowWelcomeMessage(PlayerSubscription subscription)
+    {
+        // Show welcome UI for new subscribers
+    }
+
+    void ShowNotification(string message)
+    {
+        Debug.Log($"Notification: {message}");
+        // Show in-game notification
+    }
+
+    void ShowRenewalOffer(PlayerSubscription subscription)
+    {
+        // Show renewal offer UI
+    }
+
+    void ShowRetentionOffer(PlayerSubscription subscription)
+    {
+        // Show retention/win-back offer
+    }
+
+    void TrackSubscriptionEvent(string eventName, PlayerSubscription subscription)
+    {
+        // Send analytics events
+        Debug.Log($"Analytics: {eventName} for {subscription.StoreItem.Name}");
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaSubscriptions.RemoveListener(OnSubscriptionsChanged);
+    }
+}
+```
+
+### Listen to subscription changes
+
+Subscriptions can change during runtime due to:
+
+- **New purchases:** Players subscribing to premium services
+- **Renewals:** Automatic or manual subscription renewals
+- **Cancellations:** Players cancelling their subscriptions
+- **Expiration:** Subscriptions reaching their end date
+- **Status updates:** Real-time updates from app stores
+- **Manual refresh** via PlaytoliaSubscriptions.Refresh()
+
+```c# SubscriptionTracker.cs
+public void Start()
+{
+    PlaytoliaSubscriptions.AddListener(() => {
+        var subscriptions = PlaytoliaSubscriptions.GetSubscriptions();
+        var activeCount = subscriptions.Count(s => s.IsActive);
+        var validCount = subscriptions.Count(s => s.IsValid);
+
+        Debug.Log($"Player has {subscriptions.Count} total subscriptions");
+        Debug.Log($"Active subscriptions: {activeCount}");
+        Debug.Log($"Valid subscriptions: {validCount}");
+
+        // Log subscription details
+        foreach (var subscription in subscriptions.Where(s => s.IsActive))
+        {
+            var daysUntilExpiry = (subscription.ExpiresAt - DateTime.UtcNow).TotalDays;
+            Debug.Log($"- {subscription.StoreItem.Name}: expires in {daysUntilExpiry:F0} days, auto-renew: {subscription.AutoRenew}");
+        }
+    });
+}
+```
+
+### Subscription validation and security
+
+Ensure subscription validity and handle edge cases:
+
+```c# SubscriptionValidator.cs
+using PlaytoliaSDK.Runtime;
+using System;
+using System.Linq;
+using UnityEngine;
+
+public class SubscriptionValidator : MonoBehaviour
+{
+    void ValidateSubscriptionAccess(string requiredSubscriptionId)
+    {
+        var subscription = PlaytoliaSubscriptions.GetSubscriptionsByItemId(requiredSubscriptionId)
+                                                .FirstOrDefault(s => s.IsActive && s.HasBegun);
+
+        if (subscription == null)
+        {
+            Debug.Log("Access denied: No valid subscription found");
+            ShowSubscriptionRequired();
+            return;
+        }
+
+        // Additional validation
+        if (IsSubscriptionExpiringSoon(subscription))
+        {
+            ShowExpirationWarning(subscription);
+        }
+
+        if (!subscription.AutoRenew)
+        {
+            ShowRenewalReminder(subscription);
+        }
+
+        GrantAccess();
+    }
+
+    bool IsSubscriptionExpiringSoon(PlayerSubscription subscription)
+    {
+        var timeUntilExpiry = subscription.ExpiresAt - DateTime.UtcNow;
+        return timeUntilExpiry.TotalDays <= 3; // Alert if expires within 3 days
+    }
+
+    void ShowSubscriptionRequired()
+    {
+        Debug.Log("Subscription required for this feature");
+        // Show subscription purchase UI
+    }
+
+    void ShowExpirationWarning(PlayerSubscription subscription)
+    {
+        var daysLeft = (subscription.ExpiresAt - DateTime.UtcNow).TotalDays;
+        Debug.Log($"Warning: Subscription expires in {daysLeft:F0} days");
+    }
+
+    void ShowRenewalReminder(PlayerSubscription subscription)
+    {
+        Debug.Log("Reminder: Auto-renewal is disabled for this subscription");
+    }
+
+    void GrantAccess()
+    {
+        Debug.Log("Access granted: Valid subscription found");
+    }
+}
+```
+
+### Need to implement subscription purchases?
+
+Use the Store API to handle subscription purchases that automatically create and manage subscription records.
+
+<Card title="In-game Stores" icon="store" href="/for-unity/billing/in-game-stores">
+  Learn how to setup subscription products in your store and handle subscription purchases
+</Card>
+
+### Need to check what subscriptions grant?
+
+Use the Entitlements API to see what benefits and content access players receive from their subscriptions.
+
+<Card title="Entitlements" icon="certificate" href="/for-unity/billing/entitlements">
+  Manage subscription-based entitlements and content access using PlaytoliaEntitlements
+</Card>
