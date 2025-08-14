@@ -28,7 +28,8 @@
               "for-unity/account-management",
               "for-unity/billing/in-game-stores",
               "for-unity/billing/wallets",
-              "for-unity/billing/entitlements"
+              "for-unity/billing/entitlements",
+              "for-unity/billing/subscriptions"
             ]
           }
         ]
