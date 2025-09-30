@@ -1,0 +1,48 @@
+---
+title: "Push Notifications"
+description: "Introducing Playtolia Push - an unified notification system for marketing, transactions, and in-game social features, based on FCM."
+---
+
+## How does it work?
+
+Playtolia Push uses Firebase Cloud Messaging (FCM) to provide cross-platform push notification APIs. Keep your players up-to-date with transaction notifications, send promotional messages, and automatic social updates such as in-game messages and friend requests.
+
+## Getting started
+
+### Setting up FCM
+
+Before you enable Playtolia Push, make sure that FCM is installed and Firebase is configured in your Unity game.
+
+<Info>
+  For latest instructions on how to install FCM in your Unity project, visit the [Firebase Cloud Messaging documentation](https://firebase.google.com/docs/cloud-messaging/get-started?platform=unity).
+</Info>
+
+### Enable Playtolia Push
+
+Navigate to **Edit \> Project Settings \> Playtolia Settings** to access Playtolia settings. You can enable/disable Playtolia Push and many other components at any time. Changes will take effect with the next build.
+
+<img
+  src="/images/for-unity-enable-push.png"
+  alt="Enable Playtolia Push Notifications in Settings"
+  title="Enable Playtolia Push Notifications in Settings"
+  className="mr-auto"
+  style={{ width:"50%" }}
+/>
+
+## Permissions
+
+Android and iOS requires permission from the platform (or the player) in order to send notifications. You can choose a permission strategy to change when the player is asked for a permission. Permission requests may prompt users to allow or deny the permission with a dialog, depending on the platform.
+
+It's recommend to ask for notification permission some time after the game has started, such as after intros or tutorials. Playtolia has two automatic strategies and one manual option so that you can choose when to ask for permission.
+
+| Strategy                  | Behavior                                                                                                                                |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **During Initialization** | Permission is asked during Playtolia initialization. If the permission is not granted, player will see a dialog that                    |
+| **After Login**           | Permission is asked immediately after the player logs in to an account. If user is already logged in, permission is asked at the start. |
+| **Custom**                | Permission should be asked by a game script.                                                                                            |
+
+### Requesting permission
+
+<Warning>
+  In progress
+</Warning>
