@@ -1,4 +1,387 @@
 ---
 title: "Social"
-description: "Use PlaytoliaSocial to manage friend lists and search users"
+description: "Manage friend lists, search players, and handle friend requests using PlaytoliaSocial"
 ---
+
+### Requirements
+
+- Playtolia SDK (with Authentication enabled)
+
+### Social API
+
+Playtolia Social API provides friend management, player search, and social networking features for your game. The API maintains a synchronized friends list with online status tracking, handles friend request workflows, and enables player discovery. Use PlaytoliaSocial to build social features that keep players connected and engaged.
+
+<Warning>
+  Social data is only available after successful authentication. PlaytoliaSocial functions will return empty lists or null values until the player is logged in.
+</Warning>
+
+### Getting your friends list
+
+Import the PlaytoliaSDK.Runtime to your script by adding the using directive
+
+```c# FriendsController.cs
+using PlaytoliaSDK.Runtime;
+```
+
+Call the **GetFriends** function to retrieve all friends
+
+```c# FriendsController.cs
+var friends = PlaytoliaSocial.GetFriends();
+
+foreach (var friend in friends)
+{
+    Debug.Log($"Friend: {friend.User.DisplayName} (Online: {friend.User.Status == "online"})");
+}
+```
+
+<Info>
+  PlaytoliaSocial automatically refreshes after authentication. To manually refresh the social state, use **PlaytoliaSocial.Refresh()**.
+</Info>
+
+### Understanding social entities
+
+The Social API uses three main entity types:
+
+**Player** - Represents any player in the game:
+- **Id:** Internal player identifier
+- **PlayerId:** Game-specific player ID
+- **DisplayName:** Player's display name
+- **Username:** Player's username
+- **Avatar:** URL to profile image
+- **Status:** Online status ("online" or "offline")
+- **CreatedAt:** Account creation timestamp
+
+**Friend** - Represents a confirmed friendship:
+- **FriendshipId:** Unique friendship identifier
+- **User:** Player object containing friend's information
+- **FriendsSince:** Timestamp when friendship was established
+- **UnreadCount:** Number of unread messages (if messaging is enabled)
+
+**FriendRequest** - Represents pending friend requests:
+- **RequestId:** Unique request identifier
+- **SenderId:** Player ID who sent the request
+- **RecipientId:** Player ID who received the request
+- **Sender:** Player object of the sender
+- **Recipient:** Player object of the recipient
+- **CreatedAt:** Request creation timestamp
+
+### Searching for players
+
+Use player search to help users find and add new friends
+
+```c# PlayerSearch.cs
+public void SearchForPlayer(string searchQuery)
+{
+    var results = PlaytoliaSocial.SearchPlayers(searchQuery);
+    
+    if (results.Count == 0)
+    {
+        Debug.Log("No players found");
+        return;
+    }
+    
+    foreach (var player in results)
+    {
+        Debug.Log($"Found: {player.DisplayName} (@{player.Username})");
+    }
+}
+```
+
+The search function accepts partial matches on usernames and display names, making it easy for players to find friends.
+
+### Managing friend requests
+
+**Sending Friend Requests**
+
+When a player wants to add someone as a friend, use their player ID to send a request:
+
+```c# FriendRequestManager.cs
+public void SendFriendRequest(Player player)
+{
+    PlaytoliaSocial.SendFriendRequest(player.PlayerId);
+    Debug.Log($"Friend request sent to {player.DisplayName}");
+}
+```
+
+**Viewing Incoming Requests**
+
+Check friend requests that other players have sent to you:
+
+```c# FriendRequestManager.cs
+var incomingRequests = PlaytoliaSocial.GetIncomingFriendRequests();
+
+foreach (var request in incomingRequests)
+{
+    Debug.Log($"{request.Sender.DisplayName} wants to be friends");
+}
+```
+
+**Viewing Outgoing Requests**
+
+Track friend requests you've sent that are still pending:
+
+```c# FriendRequestManager.cs
+var outgoingRequests = PlaytoliaSocial.GetOutgoingFriendRequests();
+
+foreach (var request in outgoingRequests)
+{
+    Debug.Log($"Pending request to {request.Recipient.DisplayName}");
+}
+```
+
+**Accepting Friend Requests**
+
+Accept incoming requests to add new friends:
+
+```c# FriendRequestManager.cs
+public void AcceptRequest(FriendRequest request)
+{
+    PlaytoliaSocial.AcceptFriendRequest(request.RequestId);
+}
+```
+
+**Rejecting Friend Requests**
+
+Decline requests you don't want to accept:
+
+```c# FriendRequestManager.cs
+public void RejectRequest(FriendRequest request)
+{
+    PlaytoliaSocial.RejectFriendRequest(request.RequestId);
+}
+```
+
+### Listening to social state changes
+
+Social state can change during runtime when:
+- A friend comes online or goes offline
+- A new friend request arrives
+- A friend request is accepted or rejected
+- Friends are added or removed
+
+Add listeners to keep your UI synchronized:
+
+```c# SocialPanel.cs
+void Start()
+{
+    PlaytoliaSocial.AddListener(OnSocialStateChanged);
+    OnSocialStateChanged(); // Initial update
+}
+
+void OnSocialStateChanged()
+{
+    UpdateFriendsList();
+    UpdateFriendRequests();
+    UpdateOnlineCount();
+}
+
+void UpdateOnlineCount()
+{
+    var friends = PlaytoliaSocial.GetFriends();
+    int onlineCount = friends.Count(f => f.User.Status == "online");
+    Debug.Log($"{onlineCount} friends online");
+}
+
+void OnDestroy()
+{
+    PlaytoliaSocial.RemoveListener(OnSocialStateChanged);
+}
+```
+
+<Note>
+  Always remove listeners in OnDestroy to prevent memory leaks and errors when the component is destroyed.
+</Note>
+
+### Accessing the complete social state
+
+Get the entire social state in one call:
+
+```c# SocialStateManager.cs
+var state = PlaytoliaSocial.GetState();
+
+if (state != null)
+{
+    Debug.Log($"Friends: {state.Friends.Count}");
+    Debug.Log($"Incoming Requests: {state.IncomingFriendRequests.Count}");
+    Debug.Log($"Outgoing Requests: {state.OutgoingFriendRequests.Count}");
+}
+```
+
+### Practical example: Friends UI Manager
+
+Here's a complete example showing friend list display with online status and friend request handling:
+
+```c# FriendsUIManager.cs
+using PlaytoliaSDK.Runtime;
+using Playtolia.Entity.Social;
+using UnityEngine;
+using UnityEngine.UI;
+using System.Collections.Generic;
+using System.Linq;
+
+public class FriendsUIManager : MonoBehaviour
+{
+    [Header("UI References")]
+    [SerializeField] private Transform friendsListContainer;
+    [SerializeField] private Transform requestsListContainer;
+    [SerializeField] private GameObject friendItemPrefab;
+    [SerializeField] private GameObject requestItemPrefab;
+    [SerializeField] private InputField searchInput;
+    [SerializeField] private Transform searchResultsContainer;
+    [SerializeField] private Text onlineCountText;
+
+    void Start()
+    {
+        // Listen to social state changes
+        PlaytoliaSocial.AddListener(RefreshUI);
+        
+        // Initial UI update
+        RefreshUI();
+    }
+
+    void RefreshUI()
+    {
+        DisplayFriendsList();
+        DisplayFriendRequests();
+        UpdateOnlineCount();
+    }
+
+    void DisplayFriendsList()
+    {
+        // Clear existing list
+        foreach (Transform child in friendsListContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        var friends = PlaytoliaSocial.GetFriends();
+        
+        // Sort by online status
+        var sortedFriends = friends.OrderByDescending(f => f.User.Status == "online");
+
+        foreach (var friend in sortedFriends)
+        {
+            GameObject item = Instantiate(friendItemPrefab, friendsListContainer);
+            
+            // Set display name
+            item.transform.Find("NameText").GetComponent<Text>().text = friend.User.DisplayName;
+            
+            // Set online indicator
+            bool isOnline = friend.User.Status == "online";
+            item.transform.Find("OnlineIndicator").gameObject.SetActive(isOnline);
+            
+            // Load avatar if needed
+            if (!string.IsNullOrEmpty(friend.User.Avatar))
+            {
+                StartCoroutine(LoadAvatar(friend.User.Avatar, item.transform.Find("Avatar").GetComponent<RawImage>()));
+            }
+        }
+    }
+
+    void DisplayFriendRequests()
+    {
+        // Clear existing requests
+        foreach (Transform child in requestsListContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        var requests = PlaytoliaSocial.GetIncomingFriendRequests();
+
+        foreach (var request in requests)
+        {
+            GameObject item = Instantiate(requestItemPrefab, requestsListContainer);
+            
+            // Set requester name
+            item.transform.Find("NameText").GetComponent<Text>().text = 
+                $"{request.Sender.DisplayName} wants to be friends";
+            
+            // Accept button
+            item.transform.Find("AcceptButton").GetComponent<Button>().onClick.AddListener(() => {
+                PlaytoliaSocial.AcceptFriendRequest(request.RequestId);
+            });
+            
+            // Reject button
+            item.transform.Find("RejectButton").GetComponent<Button>().onClick.AddListener(() => {
+                PlaytoliaSocial.RejectFriendRequest(request.RequestId);
+            });
+        }
+    }
+
+    void UpdateOnlineCount()
+    {
+        var friends = PlaytoliaSocial.GetFriends();
+        int onlineCount = friends.Count(f => f.User.Status == "online");
+        onlineCountText.text = $"{onlineCount}/{friends.Count} Online";
+    }
+
+    public void OnSearchButtonClicked()
+    {
+        string query = searchInput.text;
+        
+        if (string.IsNullOrEmpty(query) || query.Length < 3)
+        {
+            Debug.Log("Search query too short");
+            return;
+        }
+
+        var results = PlaytoliaSocial.SearchPlayers(query);
+        DisplaySearchResults(results);
+    }
+
+    void DisplaySearchResults(List<Player> results)
+    {
+        // Clear existing results
+        foreach (Transform child in searchResultsContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        foreach (var player in results)
+        {
+            GameObject item = Instantiate(friendItemPrefab, searchResultsContainer);
+            
+            item.transform.Find("NameText").GetComponent<Text>().text = 
+                $"{player.DisplayName} (@{player.Username})";
+            
+            // Add friend button
+            Button addButton = item.transform.Find("AddButton").GetComponent<Button>();
+            addButton.onClick.AddListener(() => {
+                PlaytoliaSocial.SendFriendRequest(player.PlayerId);
+                addButton.interactable = false;
+                addButton.GetComponentInChildren<Text>().text = "Sent";
+            });
+        }
+    }
+
+    IEnumerator LoadAvatar(string url, RawImage target)
+    {
+        using (UnityEngine.Networking.UnityWebRequest request = 
+            UnityEngine.Networking.UnityWebRequestTexture.GetTexture(url))
+        {
+            yield return request.SendWebRequest();
+            
+            if (request.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                target.texture = UnityEngine.Networking.DownloadHandlerTexture.GetContent(request);
+            }
+        }
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaSocial.RemoveListener(RefreshUI);
+    }
+}
+```
+
+### Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Party System" icon="users" href="/for-unity/party">
+    Create multiplayer lobbies and manage matchmaking with PlaytoliaParty
+  </Card>
+  <Card title="Account Management" icon="circle-user" href="/for-unity/account-management">
+    Access and manage player profile information
+  </Card>
+</CardGroup>

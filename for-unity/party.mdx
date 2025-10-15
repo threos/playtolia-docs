@@ -1,0 +1,654 @@
+---
+title: "Party System"
+description: "Create multiplayer lobbies, manage teams, and handle matchmaking using PlaytoliaParty"
+---
+
+### Requirements
+
+- Playtolia SDK (with Authentication enabled)
+
+### Party API
+
+Playtolia Party API provides multiplayer lobby management for your game. The API handles party creation, member management, invite systems, and matchmaking integration. Use PlaytoliaParty to create pre-game lobbies where players can team up before entering matches, with built-in support for party leadership, ready checks, and matchmaking queues.
+
+<Warning>
+  Party features require authentication. All PlaytoliaParty functions will return null or fail until the player is logged in.
+</Warning>
+
+### Creating a party
+
+Import the PlaytoliaSDK.Runtime to your script by adding the using directive
+
+```c# PartyController.cs
+using PlaytoliaSDK.Runtime;
+```
+
+Create a new party with customizable settings:
+
+```c# PartyController.cs
+// Create a party with default settings (max 4 players, with join code)
+PlaytoliaParty.CreateParty();
+
+// Create a party with custom settings
+PlaytoliaParty.CreateParty(maxSize: 6, generateJoinCode: true);
+```
+
+When you create a party, you automatically become the party leader. Join codes allow other players to join your party without an invite.
+
+<Info>
+  PlaytoliaParty automatically refreshes after party operations. The party state will update via listeners when the operation completes.
+</Info>
+
+### Joining a party
+
+Players can join parties in two ways:
+
+**Join by Code**
+
+Use a party's join code to let anyone join:
+
+```c# PartyJoin.cs
+public void JoinPartyByCode(string code)
+{
+    PlaytoliaParty.JoinByCode(code);
+}
+```
+
+**Join by Invite**
+
+Accept a party invitation:
+
+```c# PartyJoin.cs
+public void AcceptPartyInvite(string inviteId)
+{
+    PlaytoliaParty.AcceptInvite(inviteId);
+}
+```
+
+### Understanding party entities
+
+The Party API uses four main entity types:
+
+**Party** - Represents the party lobby:
+- **Id:** Unique party identifier
+- **GameId:** Your game's identifier
+- **LeaderId:** Player ID of the party leader
+- **MaxSize:** Maximum number of members allowed
+- **JoinCode:** Code for joining (null if not generated)
+- **CreatedAt:** Party creation timestamp
+
+**PartyMember** - Represents a player in the party:
+- **PlayerId:** Member's player ID
+- **Role:** Member role ("leader" or "member")
+- **Ready:** Whether the member is ready
+- **JoinedAt:** When the member joined
+- **Attributes:** Custom attributes dictionary for game-specific data
+
+**MatchmakingTicket** - Represents an active matchmaking session:
+- **TicketID:** Unique ticket identifier
+- **QueueName:** Name of the matchmaking queue
+- **EnqueuedAt:** When matchmaking started
+
+**PartyState** - Complete party state container:
+- **CurrentParty:** The party object (null if not in a party)
+- **Members:** List of all party members
+- **MatchmakingTicket:** Current matchmaking ticket (null if not matchmaking)
+- **PendingInvites:** List of party invites received
+
+### Checking party status
+
+Use helper functions to check the current party state:
+
+```c# PartyStatus.cs
+// Check if player is in a party
+if (PlaytoliaParty.IsInParty())
+{
+    Debug.Log("Currently in a party");
+}
+
+// Check if player is the party leader
+if (PlaytoliaParty.IsLeader())
+{
+    Debug.Log("You are the party leader");
+}
+
+// Check if party is in matchmaking
+if (PlaytoliaParty.IsMatchmaking())
+{
+    Debug.Log("Searching for a match...");
+}
+```
+
+### Getting party information
+
+Access party details and member information:
+
+```c# PartyInfo.cs
+// Get the current party
+var party = PlaytoliaParty.GetCurrentParty();
+if (party != null)
+{
+    Debug.Log($"Party ID: {party.Id}");
+    Debug.Log($"Max Size: {party.MaxSize}");
+    Debug.Log($"Join Code: {party.JoinCode}");
+}
+
+// Get all party members
+var members = PlaytoliaParty.GetMembers();
+foreach (var member in members)
+{
+    Debug.Log($"Member: {member.PlayerId}, Ready: {member.Ready}");
+}
+```
+
+### Party leadership
+
+Certain operations are restricted to the party leader. The leader can manage members, transfer leadership, and start matchmaking.
+
+**Kicking Members** (Leader Only)
+
+Remove a member from the party:
+
+```c# PartyLeader.cs
+public void KickPlayer(string playerId)
+{
+    if (!PlaytoliaParty.IsLeader())
+    {
+        Debug.Log("Only the leader can kick members");
+        return;
+    }
+    
+    PlaytoliaParty.KickMember(playerId);
+}
+```
+
+**Transferring Leadership** (Leader Only)
+
+Give leadership to another member:
+
+```c# PartyLeader.cs
+public void MakeNewLeader(string playerId)
+{
+    if (!PlaytoliaParty.IsLeader())
+    {
+        Debug.Log("Only the leader can transfer leadership");
+        return;
+    }
+    
+    PlaytoliaParty.TransferLeadership(playerId);
+}
+```
+
+<Note>
+  After transferring leadership, you become a regular member. Only the new leader can perform leader-only actions.
+</Note>
+
+### Managing party members
+
+**Inviting Players**
+
+Any party member can invite friends to join:
+
+```c# PartyInvite.cs
+public void InviteToParty(string playerId)
+{
+    PlaytoliaParty.InvitePlayer(playerId);
+    Debug.Log("Party invitation sent");
+}
+```
+
+**Setting Ready Status**
+
+Members signal they're ready to start:
+
+```c# PartyMember.cs
+public void ToggleReady()
+{
+    bool currentStatus = GetMyReadyStatus();
+    PlaytoliaParty.SetReady(!currentStatus);
+}
+
+bool GetMyReadyStatus()
+{
+    var session = PlaytoliaSession.GetUser();
+    if (session == null) return false;
+    
+    var members = PlaytoliaParty.GetMembers();
+    var myMember = members.Find(m => m.PlayerId == session.PlayerId);
+    
+    return myMember?.Ready ?? false;
+}
+```
+
+Ready checks help ensure all players are prepared before starting a match or entering matchmaking.
+
+**Leaving the Party**
+
+Any member can leave at any time:
+
+```c# PartyActions.cs
+public void LeaveParty()
+{
+    PlaytoliaParty.LeaveParty();
+}
+```
+
+If the leader leaves, leadership is automatically transferred to another member. If the last member leaves, the party is disbanded.
+
+### Matchmaking
+
+The party leader can queue the entire party for matchmaking. This searches for other parties or players to create balanced matches.
+
+**Starting Matchmaking** (Leader Only)
+
+```c# PartyMatchmaking.cs
+public void StartMatchmaking()
+{
+    if (!PlaytoliaParty.IsLeader())
+    {
+        Debug.Log("Only the leader can start matchmaking");
+        return;
+    }
+    
+    // Use your game's queue name (configured in Playtolia dashboard)
+    PlaytoliaParty.StartMatchmaking("ranked");
+}
+```
+
+Queue names are configured in your Playtolia dashboard and determine matchmaking rules, such as skill-based matching or casual/ranked modes.
+
+**Checking Matchmaking Status**
+
+```c# PartyMatchmaking.cs
+void Update()
+{
+    if (PlaytoliaParty.IsMatchmaking())
+    {
+        var ticket = PlaytoliaParty.GetMatchmakingTicket();
+        if (ticket != null)
+        {
+            Debug.Log($"Searching... Queue: {ticket.QueueName}");
+        }
+    }
+}
+```
+
+**Canceling Matchmaking** (Leader Only)
+
+```c# PartyMatchmaking.cs
+public void CancelMatchmaking()
+{
+    if (!PlaytoliaParty.IsLeader())
+    {
+        Debug.Log("Only the leader can cancel matchmaking");
+        return;
+    }
+    
+    PlaytoliaParty.CancelMatchmaking();
+}
+```
+
+### Listening to party state changes
+
+Party state changes when:
+- Members join or leave
+- Ready status changes
+- Leadership transfers
+- Matchmaking starts or stops
+- Party is created or disbanded
+
+Add listeners to keep your UI synchronized:
+
+```c# PartyPanel.cs
+void Start()
+{
+    PlaytoliaParty.AddListener(OnPartyStateChanged);
+    OnPartyStateChanged(); // Initial update
+}
+
+void OnPartyStateChanged()
+{
+    UpdatePartyUI();
+    UpdateMemberList();
+    UpdateMatchmakingUI();
+}
+
+void UpdatePartyUI()
+{
+    if (!PlaytoliaParty.IsInParty())
+    {
+        ShowCreateJoinScreen();
+        return;
+    }
+    
+    ShowPartyLobby();
+    UpdateLeaderControls(PlaytoliaParty.IsLeader());
+}
+
+void OnDestroy()
+{
+    PlaytoliaParty.RemoveListener(OnPartyStateChanged);
+}
+```
+
+<Note>
+  Always remove listeners in OnDestroy to prevent memory leaks and errors when the component is destroyed.
+</Note>
+
+### Accessing the complete party state
+
+Get the entire party state in one call:
+
+```c# PartyStateManager.cs
+var state = PlaytoliaParty.GetState();
+
+if (state != null)
+{
+    Debug.Log($"In Party: {state.CurrentParty != null}");
+    Debug.Log($"Members: {state.Members.Count}");
+    Debug.Log($"Is Leader: {state.IsLeader()}");
+    Debug.Log($"Matchmaking: {state.IsMatchmaking()}");
+}
+```
+
+### Practical example: Party Lobby Manager
+
+Here's a complete example showing party creation, member management, and matchmaking:
+
+```c# PartyLobbyManager.cs
+using PlaytoliaSDK.Runtime;
+using Playtolia.Entity.Party;
+using UnityEngine;
+using UnityEngine.UI;
+using System.Linq;
+
+public class PartyLobbyManager : MonoBehaviour
+{
+    [Header("UI Screens")]
+    [SerializeField] private GameObject createJoinScreen;
+    [SerializeField] private GameObject partyLobbyScreen;
+    
+    [Header("Create/Join UI")]
+    [SerializeField] private InputField maxSizeInput;
+    [SerializeField] private Toggle joinCodeToggle;
+    [SerializeField] private InputField joinCodeInput;
+    
+    [Header("Lobby UI")]
+    [SerializeField] private Text partyCodeText;
+    [SerializeField] private Transform membersListContainer;
+    [SerializeField] private GameObject memberItemPrefab;
+    [SerializeField] private Button startMatchmakingButton;
+    [SerializeField] private Button cancelMatchmakingButton;
+    [SerializeField] private Button leavePartyButton;
+    [SerializeField] private Button readyButton;
+    [SerializeField] private Text readyButtonText;
+    [SerializeField] private Text matchmakingStatusText;
+    
+    void Start()
+    {
+        PlaytoliaParty.AddListener(OnPartyStateChanged);
+        OnPartyStateChanged();
+    }
+
+    void OnPartyStateChanged()
+    {
+        bool inParty = PlaytoliaParty.IsInParty();
+        
+        createJoinScreen.SetActive(!inParty);
+        partyLobbyScreen.SetActive(inParty);
+        
+        if (inParty)
+        {
+            UpdatePartyLobby();
+        }
+    }
+
+    // ========== Create/Join Party ==========
+    
+    public void OnCreatePartyClicked()
+    {
+        int maxSize = 4;
+        if (!string.IsNullOrEmpty(maxSizeInput.text))
+        {
+            int.TryParse(maxSizeInput.text, out maxSize);
+        }
+        
+        bool generateCode = joinCodeToggle.isOn;
+        PlaytoliaParty.CreateParty(maxSize, generateCode);
+    }
+
+    public void OnJoinPartyClicked()
+    {
+        string code = joinCodeInput.text.ToUpper();
+        
+        if (string.IsNullOrEmpty(code))
+        {
+            Debug.Log("Please enter a party code");
+            return;
+        }
+        
+        PlaytoliaParty.JoinByCode(code);
+    }
+
+    // ========== Party Lobby ==========
+    
+    void UpdatePartyLobby()
+    {
+        var party = PlaytoliaParty.GetCurrentParty();
+        bool isLeader = PlaytoliaParty.IsLeader();
+        bool isMatchmaking = PlaytoliaParty.IsMatchmaking();
+        
+        // Update party code display
+        if (!string.IsNullOrEmpty(party?.JoinCode))
+        {
+            partyCodeText.text = $"Party Code: {party.JoinCode}";
+        }
+        else
+        {
+            partyCodeText.text = "No join code";
+        }
+        
+        // Update member list
+        UpdateMembersList(isLeader);
+        
+        // Update ready button
+        UpdateReadyButton();
+        
+        // Update matchmaking UI
+        UpdateMatchmakingUI(isLeader, isMatchmaking);
+        
+        // Update leave button
+        leavePartyButton.interactable = !isMatchmaking;
+    }
+
+    void UpdateMembersList(bool isLeader)
+    {
+        // Clear existing list
+        foreach (Transform child in membersListContainer)
+        {
+            Destroy(child.gameObject);
+        }
+        
+        var members = PlaytoliaParty.GetMembers();
+        var party = PlaytoliaParty.GetCurrentParty();
+        
+        foreach (var member in members)
+        {
+            GameObject item = Instantiate(memberItemPrefab, membersListContainer);
+            
+            // Display member info
+            string displayText = member.PlayerId;
+            if (member.Role == "leader")
+            {
+                displayText += " [Leader]";
+            }
+            if (member.Ready)
+            {
+                displayText += " ✓";
+            }
+            
+            item.transform.Find("MemberText").GetComponent<Text>().text = displayText;
+            
+            // Show kick button for leader (can't kick self)
+            bool canKick = isLeader && member.PlayerId != party.LeaderId;
+            Button kickButton = item.transform.Find("KickButton")?.GetComponent<Button>();
+            
+            if (kickButton != null)
+            {
+                kickButton.gameObject.SetActive(canKick);
+                kickButton.onClick.AddListener(() => {
+                    PlaytoliaParty.KickMember(member.PlayerId);
+                });
+            }
+            
+            // Show promote button for leader
+            Button promoteButton = item.transform.Find("PromoteButton")?.GetComponent<Button>();
+            if (promoteButton != null)
+            {
+                promoteButton.gameObject.SetActive(canKick);
+                promoteButton.onClick.AddListener(() => {
+                    PlaytoliaParty.TransferLeadership(member.PlayerId);
+                });
+            }
+        }
+    }
+
+    void UpdateReadyButton()
+    {
+        var session = PlaytoliaSession.GetUser();
+        if (session == null) return;
+        
+        var members = PlaytoliaParty.GetMembers();
+        var myMember = members.Find(m => m.PlayerId == session.PlayerId);
+        
+        bool isReady = myMember?.Ready ?? false;
+        bool isMatchmaking = PlaytoliaParty.IsMatchmaking();
+        
+        readyButtonText.text = isReady ? "Not Ready" : "Ready";
+        readyButton.interactable = !isMatchmaking;
+        
+        // Visual feedback for ready state
+        ColorBlock colors = readyButton.colors;
+        colors.normalColor = isReady ? Color.green : Color.gray;
+        readyButton.colors = colors;
+    }
+
+    public void OnReadyButtonClicked()
+    {
+        var session = PlaytoliaSession.GetUser();
+        if (session == null) return;
+        
+        var members = PlaytoliaParty.GetMembers();
+        var myMember = members.Find(m => m.PlayerId == session.PlayerId);
+        
+        bool currentReady = myMember?.Ready ?? false;
+        PlaytoliaParty.SetReady(!currentReady);
+    }
+
+    void UpdateMatchmakingUI(bool isLeader, bool isMatchmaking)
+    {
+        startMatchmakingButton.gameObject.SetActive(isLeader && !isMatchmaking);
+        cancelMatchmakingButton.gameObject.SetActive(isLeader && isMatchmaking);
+        
+        if (isMatchmaking)
+        {
+            var ticket = PlaytoliaParty.GetMatchmakingTicket();
+            matchmakingStatusText.text = $"Searching for match... ({ticket?.QueueName})";
+            matchmakingStatusText.gameObject.SetActive(true);
+        }
+        else
+        {
+            matchmakingStatusText.gameObject.SetActive(false);
+        }
+        
+        // Check if all members are ready
+        if (isLeader && !isMatchmaking)
+        {
+            var members = PlaytoliaParty.GetMembers();
+            bool allReady = members.All(m => m.Ready);
+            startMatchmakingButton.interactable = allReady && members.Count >= 1;
+        }
+    }
+
+    public void OnStartMatchmakingClicked()
+    {
+        if (!PlaytoliaParty.IsLeader())
+        {
+            Debug.Log("Only the leader can start matchmaking");
+            return;
+        }
+        
+        var members = PlaytoliaParty.GetMembers();
+        if (!members.All(m => m.Ready))
+        {
+            Debug.Log("All members must be ready");
+            return;
+        }
+        
+        // Use your game's queue name from Playtolia dashboard
+        PlaytoliaParty.StartMatchmaking("ranked");
+    }
+
+    public void OnCancelMatchmakingClicked()
+    {
+        PlaytoliaParty.CancelMatchmaking();
+    }
+
+    public void OnLeavePartyClicked()
+    {
+        PlaytoliaParty.LeaveParty();
+    }
+
+    void OnDestroy()
+    {
+        PlaytoliaParty.RemoveListener(OnPartyStateChanged);
+    }
+}
+```
+
+### Common patterns
+
+**Check All Members Ready**
+
+```c# PartyChecks.cs
+bool AllMembersReady()
+{
+    var members = PlaytoliaParty.GetMembers();
+    return members.Count > 0 && members.All(m => m.Ready);
+}
+```
+
+**Find Member by Player ID**
+
+```c# PartyUtils.cs
+PartyMember FindMember(string playerId)
+{
+    return PlaytoliaParty.GetMembers().Find(m => m.PlayerId == playerId);
+}
+```
+
+**Share Party Code**
+
+```c# PartyShare.cs
+public void CopyPartyCodeToClipboard()
+{
+    var party = PlaytoliaParty.GetCurrentParty();
+    if (!string.IsNullOrEmpty(party?.JoinCode))
+    {
+        GUIUtility.systemCopyBuffer = party.JoinCode;
+        Debug.Log("Party code copied to clipboard");
+    }
+}
+```
+
+### Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Social Features" icon="users" href="/for-unity/social">
+    Manage friend lists and player search with PlaytoliaSocial
+  </Card>
+  <Card title="Authentication" icon="arrow-right-to-bracket" href="/for-unity/authentication">
+    Learn about user authentication and session management
+  </Card>
+</CardGroup>
+
